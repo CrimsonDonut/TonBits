@@ -1,13 +1,14 @@
 <?php
 
 class Database {
+    
     private $host = "localhost";
     private $db_name = "db_tonbits";
     private $username = "root";
     private $password = "";
     private $conn;
 
-    public function connect() {
+    public function connect(): ?PDO {
         $this->conn = null;
 
         try {

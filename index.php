@@ -1,12 +1,34 @@
 <?php
+session_start();
+
+$cartCount = 0;
+
+if (isset($_SESSION['cart'])) {
+    foreach ($_SESSION['cart'] as $qty) {
+        $cartCount += $qty; // total items, not just unique products
+    }
+}
+
 require_once "config/Database.php";
+require_once "config/auth_helper.php";
 require_once "models/Product.php";
+
+// Get error message if it exists
+$error = isset($_SESSION['error']) ? $_SESSION['error'] : null;
+if (isset($_SESSION['error'])) {
+    unset($_SESSION['error']);
+}
 
 $database = new Database();
 $db = $database->connect();
 
+// Create Product instance and fetch products
 $product = new Product($db);
 $products = $product->getAllProducts();
+
+// Check if user is logged in
+$is_logged_in = AuthHelper::isLoggedIn();
+$username = $is_logged_in ? $_SESSION['username'] : null;
 ?>
 
 <!DOCTYPE html>
@@ -34,14 +56,41 @@ $products = $product->getAllProducts();
                 <a href="#specs">Specs</a>
                 <a href="#support">Support</a>
             </div>
-            <button class="btn-shop">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="9" cy="21" r="1"></circle>
-                    <circle cx="20" cy="21" r="1"></circle>
-                    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
-                </svg>
-                <span>Shop Now</span>
-            </button>
+            <div class="nav-buttons">
+                <button class="btn-shop" onclick="window.location.href='pages/cart.php'">
+                    <div class="cart-icon-wrapper">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="9" cy="21" r="1"></circle>
+                            <circle cx="20" cy="21" r="1"></circle>
+                            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                        </svg>
+
+                        <?php if ($cartCount > 0): ?>
+                            <span class="cart-badge"><?php echo $cartCount; ?></span>
+                        <?php endif; ?>
+                    </div>
+                    <span>View Cart</span>
+                </button>
+                <div class="profile-dropdown-container">
+                    <button class="btn-profile" id="profileBtn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                    </button>
+                    <div class="profile-dropdown" id="profileDropdown">
+                        <?php if ($is_logged_in): ?>
+                            <div class="dropdown-header">
+                                <span class="dropdown-username"><?php echo htmlspecialchars($username); ?></span>
+                            </div>
+                            <a href="pages/logout.php" class="dropdown-item">Logout</a>
+                        <?php else: ?>
+                            <a href="pages/login.php" class="dropdown-item">Login</a>
+                            <a href="pages/register.php" class="dropdown-item">Register</a>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
         </div>
     </nav>
 
@@ -51,6 +100,21 @@ $products = $product->getAllProducts();
         <div class="bg-glow-1"></div>
         <div class="bg-glow-2"></div>
     </div>
+
+    <!-- Error Modal -->
+    <?php if ($error): ?>
+        <div class="modal-overlay" id="errorModal" style="display: flex;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Notice</h2>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p><?php echo htmlspecialchars($error); ?></p>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
 
     <!-- Hero Section -->
     <section class="hero-section">
@@ -71,7 +135,7 @@ $products = $product->getAllProducts();
                     <span class="gradient-text">Unleashed</span>
                 </h1>
                 <p class="hero-description">
-                    Experience ultimate performance with ROG Strix GeForce RTX™ 5070 Ti.
+                    Experience ultimate performance with ROG Strix GeForce RTX™ 50 Series.
                     Advanced cooling, AI-enhanced graphics, and unprecedented power delivery.
                 </p>
                 <div class="hero-buttons">
@@ -116,15 +180,22 @@ $products = $product->getAllProducts();
             </div>
             <div class="products-grid">
                 <?php if (!empty($products)): ?>
-                    <?php $index = 0; foreach ($products as $row): ?>
+                    <?php $index = 0; foreach ($products as $gpu): ?>
                         <?php 
-                            // Determine card variant based on product index
+                            // Determine card variant based on product index (only for first 3 products)
                             $variants = ['card-bestseller', 'card-new', 'card-flagship'];
-                            $variant = $variants[$index % 3];
                             $badges = ['Best Seller', 'New', 'Flagship'];
-                            $badge = $badges[$index % 3];
                             $badgeClasses = ['badge-bestseller', 'badge-new', 'badge-flagship'];
-                            $badgeClass = $badgeClasses[$index % 3];
+                            
+                            if ($index < 3) {
+                                $variant = $variants[$index];
+                                $badge = $badges[$index];
+                                $badgeClass = $badgeClasses[$index];
+                            } else {
+                                $variant = 'card-default';
+                                $badge = '';
+                                $badgeClass = '';
+                            }
                             $index++;
                         ?>
                         <div class="product-card <?php echo $variant; ?>">
@@ -133,40 +204,48 @@ $products = $product->getAllProducts();
                                 <div class="corner-accent-tl"></div>
                                 <div class="corner-accent-br"></div>
                                 <div class="card-badge <?php echo $badgeClass; ?>">
+                                    <?php if (!empty($badge)): ?>
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2">
                                         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                                     </svg>
                                     <span><?php echo $badge; ?></span>
+                                    <?php endif; ?>
                                 </div>
                                 <div class="corner-glow"></div>
                                 <div class="scan-line"></div>
                                 <div class="product-image">
                                     <div class="image-glow-product"></div>
-                                    <img src="uploads/<?php echo htmlspecialchars($row['image']); ?>" alt="<?php echo htmlspecialchars($row['name']); ?>">
+                                    <img src="uploads/<?php echo htmlspecialchars($gpu->image); ?>" alt="<?php echo htmlspecialchars($gpu->name); ?>">
                                 </div>
                                 <div class="product-info">
                                     <div class="product-series">GPU</div>
-                                    <h3 class="product-name"><?php echo htmlspecialchars($row['name']); ?></h3>
+                                    <h3 class="product-name"><?php echo htmlspecialchars($gpu->name); ?></h3>
                                     <div class="product-meta">
-                                        <span class="product-memory"><?php echo htmlspecialchars($row['description'] ?? 'Specs not available'); ?></span>
-                                        <span class="product-price">₱<?php echo number_format($row['price'], 2); ?></span>
+                                        <span class="product-memory"><?php echo htmlspecialchars($gpu->description ?? 'Specs not available'); ?></span>
+                                        <span class="product-price"><?php echo $gpu->formatted_price; ?></span>
                                     </div>
                                     <p class="product-stock">
-                                        <?php if ($row['quantity'] > 0): ?>
-                                            Stock: <?php echo $row['quantity']; ?>
+                                        <?php if ($gpu->in_stock): ?>
+                                            Stock: <?php echo $gpu->quantity; ?>
                                         <?php else: ?>
                                             <span style="color:red;">Out of Stock</span>
                                         <?php endif; ?>
                                     </p>
-                                    <form method="POST" action="cart.php">
-                                        <input type="hidden" name="product_id" value="<?php echo $row['id']; ?>">
-                                        <button type="submit" class="btn-product">
-                                            Add to Cart
-                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <polyline points="9 18 15 12 9 6"></polyline>
-                                            </svg>
+                                    <?php if ($gpu->in_stock): ?>
+                                        <form method="POST" action="pages/cart.php">
+                                            <input type="hidden" name="product_id" value="<?php echo $gpu->id; ?>">
+                                            <button type="submit" class="btn-product">
+                                                Add to Cart
+                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <polyline points="9 18 15 12 9 6"></polyline>
+                                                </svg>
+                                            </button>
+                                        </form>
+                                    <?php else: ?>
+                                        <button class="btn-product" disabled>
+                                            Out of Stock
                                         </button>
-                                    </form>
+                                    <?php endif; ?>
                                 </div>
                                 <div class="bottom-gradient"></div>
                             </div>
@@ -177,6 +256,7 @@ $products = $product->getAllProducts();
                 <?php endif; ?>
             </div>
         </div>
+        
     </section>
 
     <!-- Features Section -->
@@ -200,9 +280,7 @@ $products = $product->getAllProducts();
 
                 <div class="feature-card">
                     <div class="feature-icon feature-icon-2">
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-                        </svg>
+                        <img src="assets/style/icons/icon-1.svg" alt="DLSS 4" style="width: 48px; height: 48px;">
                     </div>
                     <h3 class="feature-title">DLSS 4 with Multi Frame Generation</h3>
                     <p class="feature-description">AI-enhanced graphics delivering up to 2x performance boost with stunning visual quality</p>
@@ -262,7 +340,7 @@ $products = $product->getAllProducts();
                     </h3>
                     <p class="footer-tagline">Premium GPU solutions for gamers and creators worldwide</p>
                     <div class="social-links">
-                        <a href="#" class="social-link">
+                        <a href="https://www.facebook.com/carlanthony.pena" class="social-link">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
                             </svg>
@@ -322,5 +400,8 @@ $products = $product->getAllProducts();
             </div>
         </div>
     </footer>
+
+    <!-- Scripts -->
+    <script src="assets/js/main.js"></script>
 </body>
 </html>
