@@ -27,6 +27,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $description = trim(htmlspecialchars($_POST['description'] ?? '', ENT_QUOTES, 'UTF-8'));
         $price = trim($_POST['price'] ?? '');
         $quantity = trim($_POST['quantity'] ?? '');
+        $brand = trim($_POST['brand'] ?? '');
+        $memory_size = trim($_POST['memory_size'] ?? '');
+        $features = trim($_POST['features'] ?? '');
+        $specifications = trim($_POST['specifications'] ?? '');
 
         // Validate required fields using string testing functions
         if ($id === null) {
@@ -55,6 +59,26 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         if (empty($quantity) || !is_numeric($quantity) || (int)$quantity < 0) {
             throw new Exception("Quantity is required and must be a valid non-negative number.");
         }
+
+        if (empty($brand)) {
+            throw new Exception("Brand cannot be empty.");
+        }
+
+        if (empty($memory_size)) {
+            throw new Exception("Memory size cannot be empty.");
+        }
+
+        if (!is_numeric($memory_size)) {
+            throw new Exception("Memory size must be a valid number.");
+        }
+
+        if (empty($features)) {
+            throw new Exception("Features cannot be empty.");
+        }
+
+        if (empty($specifications)) {
+            throw new Exception("Specifications cannot be empty.");
+        }
         
         // String Testing: str_word_count() - Validate description has meaningful content
         if (!empty($description) && str_word_count($description) < 3) {
@@ -63,6 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         $price = (float)$price;
         $quantity = (int)$quantity;
+        $memory_size = (int)$memory_size;
 
         // Handle image (optional update)
         $imageName = $_POST['existing_image'] ?? '';
@@ -95,7 +120,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
         }
 
-        if ($product->updateProduct($id, $name, $description, $price, $quantity, $imageName)) {
+        if ($product->updateProduct($id, $name, $description, $price, $quantity, $imageName, $brand, $memory_size, $features, $specifications)) {
             $message = "Product updated successfully!";
         } else {
             $message = "Update failed.";
@@ -187,6 +212,30 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         <div class="form-group">
                             <label for="quantity" class="form-label">Quantity</label>
                             <input type="number" id="quantity" name="quantity" class="form-input" min="0" value="<?php echo $current->quantity; ?>" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="brand" class="form-label">Brand</label>
+                            <select id="brand" name="brand" class="form-input" required>
+                                <option value="">Select a brand</option>
+                                <option value="NVIDIA" <?php echo $current->brand === 'NVIDIA' ? 'selected' : ''; ?>>NVIDIA</option>
+                                <option value="AMD" <?php echo $current->brand === 'AMD' ? 'selected' : ''; ?>>AMD</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="memory_size" class="form-label">Memory Size (GB)</label>
+                            <input type="number" id="memory_size" name="memory_size" class="form-input" min="0" step="1" value="<?php echo $current->memory_size; ?>" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="features" class="form-label">Features (JSON Array)</label>
+                            <textarea id="features" name="features" class="form-textarea" required><?php echo htmlspecialchars(is_array($current->features) ? json_encode($current->features) : $current->features); ?></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="specifications" class="form-label">Specifications (JSON Object)</label>
+                            <textarea id="specifications" name="specifications" class="form-textarea" required><?php echo htmlspecialchars(is_array($current->specifications) ? json_encode($current->specifications) : $current->specifications); ?></textarea>
                         </div>
 
                         <div class="form-group">

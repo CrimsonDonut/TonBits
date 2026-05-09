@@ -16,11 +16,36 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $description = trim($_POST['description'] ?? '');
         $price = trim($_POST['price'] ?? '');
         $quantity = trim($_POST['quantity'] ?? '');
+        $features = trim($_POST['features'] ?? '');
+        $specifications = trim($_POST['specifications'] ?? '');
+        $brand = trim($_POST['brand'] ?? '');
+        $memory_size = trim($_POST['memory_size'] ?? '');
 
         // String Testing: empty() - Check if required fields are empty
         if (empty($name)) {
             throw new Exception("Product name cannot be empty.");
         }
+
+        if (empty($features)) {
+            throw new Exception("Features cannot be empty.");
+        }
+
+        if (empty($specifications)) {
+            throw new Exception("Specifications cannot be empty.");
+        }
+
+        if (empty($brand)) {
+            throw new Exception("Brand cannot be empty.");
+        }
+
+        if (empty($memory_size)) {
+            throw new Exception("Memory size cannot be empty.");
+        }
+
+        if (empty($price)) {
+            throw new Exception("Price cannot be empty.");
+        }
+
         if (empty($price)) {
             throw new Exception("Price cannot be empty.");
         }
@@ -37,6 +62,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
 
         // String Testing: is_numeric() - Validate price and quantity are numeric
+        if (!is_numeric($memory_size)) {
+            throw new Exception("Memory size must be a valid number.");
+        }
         if (!is_numeric($price)) {
             throw new Exception("Price must be a valid number.");
         }
@@ -59,6 +87,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $product->description = $description;
         $product->price = (float)$price;
         $product->quantity = (int)$quantity;
+        $product->brand = $brand;
+        $product->memory_size = (int)$memory_size;
+        $product->features = $features;
+        $product->specifications = $specifications;
 
         // Image upload
         $imageName = $_FILES['image']['name'];
@@ -71,7 +103,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $product->description,
                 $product->price,
                 $product->quantity,
-                $imageName
+                $imageName,
+                $product->brand,
+                $product->memory_size,
+                $product->features,
+                $product->specifications
             )) {
                 $message = "Product added successfully!";
             } else {
@@ -161,6 +197,30 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <div class="form-group">
                         <label for="quantity" class="form-label">Quantity</label>
                         <input type="number" id="quantity" name="quantity" class="form-input" min="0" placeholder="Enter quantity" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="brand" class="form-label">Brand</label>
+                        <select id="brand" name="brand" class="form-input" required>
+                            <option value="">Select a brand</option>
+                            <option value="NVIDIA">NVIDIA</option>
+                            <option value="AMD">AMD</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="memory_size" class="form-label">Memory Size (GB)</label>
+                        <input type="number" id="memory_size" name="memory_size" class="form-input" min="0" step="1" placeholder="Enter memory size" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="features" class="form-label">Features (JSON Array)</label>
+                        <textarea id="features" name="features" class="form-textarea" placeholder='["Advanced thermal design", "Maximum performance for gaming", "Next-gen ray tracing technology", "AI-enhanced graphics", "Premium build quality", "Durability"]' required></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="specifications" class="form-label">Specifications (JSON Object)</label>
+                        <textarea id="specifications" name="specifications" class="form-textarea" placeholder='{"AI Performance": "1406 TOPS", "Memory": "16GB GDDR7", "Boost Clock": "2.61 GHz", "TGP": "285W", "Memory Type": "GDDR7", "Memory Interface": "256-bit", "Ray Tracing": "4th Generation", "Connectivity": "3x DisplayPort 2.1, 1x HDMI 2.1"}' required></textarea>
                     </div>
 
                     <div class="form-group">

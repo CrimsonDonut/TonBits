@@ -33,3 +33,20 @@ document.addEventListener('click', function(e) {
         profileDropdown.classList.remove('active');
     }
 });
+
+// Products dropdown toggle
+const productsBtn = document.getElementById('productsBtn');
+const productsDropdown = document.getElementById('productsDropdown');
+
+if (productsBtn && productsDropdown) {
+    productsBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        productsDropdown.classList.toggle('active');
+    });
+    
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.products-dropdown-container')) {
+            productsDropdown.classList.remove('active');
+        }
+    });
+}

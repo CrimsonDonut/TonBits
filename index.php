@@ -51,9 +51,14 @@ $username = $is_logged_in ? $_SESSION['username'] : null;
                 </h1>
             </div>
             <div class="nav-links">
-                <a href="#products">Products</a>
-                <a href="#features">Features</a>
-                <a href="#specs">Specs</a>
+                <div class="products-dropdown-container">
+                    <button class="btn-products" id="productsBtn">Products</button>
+                    <div class="products-dropdown" id="productsDropdown">
+                        <a href="pages/all-products.php" class="dropdown-item">All Products</a>
+                        <a href="pages/all-products.php?brand=NVIDIA" class="dropdown-item">Nvidia</a>
+                        <a href="pages/all-products.php?brand=AMD" class="dropdown-item">AMD</a>
+                    </div>
+                </div>
                 <a href="#support">Support</a>
             </div>
             <div class="nav-buttons">
@@ -180,7 +185,7 @@ $username = $is_logged_in ? $_SESSION['username'] : null;
             </div>
             <div class="products-grid">
                 <?php if (!empty($products)): ?>
-                    <?php $index = 0; foreach ($products as $gpu): ?>
+                    <?php $index = 0; foreach (array_slice($products, 0, 3) as $gpu): ?>
                         <?php 
                             // Determine card variant based on product index (only for first 3 products)
                             $variants = ['card-bestseller', 'card-new', 'card-flagship'];
@@ -198,30 +203,30 @@ $username = $is_logged_in ? $_SESSION['username'] : null;
                             }
                             $index++;
                         ?>
-                        <div class="product-card <?php echo $variant; ?>">
-                            <div class="card-glow-ring"></div>
-                            <div class="card-inner">
-                                <div class="corner-accent-tl"></div>
-                                <div class="corner-accent-br"></div>
-                                <div class="card-badge <?php echo $badgeClass; ?>">
-                                    <?php if (!empty($badge)): ?>
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2">
-                                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                                    </svg>
-                                    <span><?php echo $badge; ?></span>
-                                    <?php endif; ?>
-                                </div>
-                                <div class="corner-glow"></div>
-                                <div class="scan-line"></div>
-                                <div class="product-image">
-                                    <div class="image-glow-product"></div>
-                                    <img src="uploads/<?php echo htmlspecialchars($gpu->image); ?>" alt="<?php echo htmlspecialchars($gpu->name); ?>">
-                                </div>
+                        <a href="pages/product-detail.php?id=<?php echo $gpu->id; ?>" style="text-decoration: none; color: inherit;">
+                            <div class="product-card <?php echo $variant; ?>">
+                                <div class="card-glow-ring"></div>
+                                <div class="card-inner">
+                                    <div class="corner-accent-tl"></div>
+                                    <div class="corner-accent-br"></div>
+                                    <div class="card-badge <?php echo $badgeClass; ?>">
+                                        <?php if (!empty($badge)): ?>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2">
+                                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                                        </svg>
+                                        <span><?php echo $badge; ?></span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="corner-glow"></div>
+                                    <div class="scan-line"></div>
+                                    <div class="product-image">
+                                        <div class="image-glow-product"></div>
+                                        <img src="uploads/<?php echo htmlspecialchars($gpu->image); ?>" alt="<?php echo htmlspecialchars($gpu->name); ?>">
+                                    </div>
                                 <div class="product-info">
                                     <div class="product-series">GPU</div>
                                     <h3 class="product-name"><?php echo htmlspecialchars($gpu->name); ?></h3>
                                     <div class="product-meta">
-                                        <span class="product-memory"><?php echo htmlspecialchars($gpu->description ?? 'Specs not available'); ?></span>
                                         <span class="product-price"><?php echo $gpu->formatted_price; ?></span>
                                     </div>
                                     <p class="product-stock">
@@ -250,6 +255,7 @@ $username = $is_logged_in ? $_SESSION['username'] : null;
                                 <div class="bottom-gradient"></div>
                             </div>
                         </div>
+                        </a>
                     <?php endforeach; ?>
                 <?php else: ?>
                     <p style="grid-column: 1 / -1; text-align: center; color: #9ca3af; padding: 2rem;">No products found.</p>
