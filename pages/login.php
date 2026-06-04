@@ -90,7 +90,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
             // Handle remember-me
             if ($remember_me) {
-                $token = $auth_helper->createRememberMeToken($login_result['user_data']['id']);
+                $token = $auth_helper->createRememberMeToken($login_result['user_data']['user_ID']);
                 if ($token) {
                     setcookie('remember_token', $token, time() + (30 * 24 * 60 * 60), '/');
                 }

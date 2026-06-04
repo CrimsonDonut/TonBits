@@ -28,11 +28,16 @@ profileBtn.addEventListener('click', function(e) {
 });
 
 // Close dropdown when clicking outside
+// Close dropdowns when clicking outside
 document.addEventListener('click', function(e) {
-    if (!e.target.closest('.profile-dropdown-container')) {
+    if (profileDropdown && !e.target.closest('.profile-dropdown-container')) {
         profileDropdown.classList.remove('active');
     }
+    if (productsDropdown && !e.target.closest('.products-dropdown-container')) {
+        productsDropdown.classList.remove('active');
+    }
 });
+
 
 // Products dropdown toggle
 const productsBtn = document.getElementById('productsBtn');

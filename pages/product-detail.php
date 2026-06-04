@@ -8,6 +8,7 @@ if (isset($_SESSION['cart'])) {
         $cartCount += $qty;
     }
 }
+$error_message = isset($_SESSION['error']) ? $_SESSION['error'] : null;
 
 require_once "../config/Database.php";
 require_once "../config/auth_helper.php";
@@ -44,10 +45,22 @@ $username = $is_logged_in ? $_SESSION['username'] : null;
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($productData->name); ?> - tonbits</title>
     <link rel="stylesheet" href="../assets/style/style.css">
+    <link rel="stylesheet" href="../assets/style/modal-styles.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;600;700;800;900&display=swap">
     <link rel="stylesheet" href="https://fonts.cdnfonts.com/css/cyberpunks">
 </head>
+
 <body>
+    <?php if ($error_message): ?>
+<div class="modal-overlay" id="errorModal" style="display: flex;">
+  <div class="modal-content">
+    <button class="modal-close" onclick="document.getElementById('errorModal').style.display='none';">&times;</button>
+    <h2 class="modal-title">Stock Limit</h2>
+    <p class="modal-message"><?php echo htmlspecialchars($error_message); ?></p>
+    <button class="modal-btn" onclick="document.getElementById('errorModal').style.display='none';">Got it</button>
+  </div>
+</div>
+<?php endif; ?>
     <!-- Navigation -->
     <nav class="navbar">
         <div class="nav-container">
@@ -146,6 +159,7 @@ $username = $is_logged_in ? $_SESSION['username'] : null;
                     <div class="product-price">
                         <div class="price-amount"><?php echo $productData->formatted_price; ?></div>
                     </div>
+                    
 
                     <!-- Quick Specs -->
                     <div class="quick-specs">

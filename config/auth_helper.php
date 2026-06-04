@@ -180,13 +180,16 @@ class AuthHelper {
 
             $query = "INSERT INTO remember_tokens (user_id, token, expires_at) VALUES (:user_id, :token, :expires_at)";
             $stmt = $this->conn->prepare($query);
-            $stmt->bindParam(':user_id', $user_id);
-            $stmt->bindParam(':token', $token);
-            $stmt->bindParam(':expires_at', $expires_at);
+            $stmt->bindParam(':user_id', $user_id, PDO::PARAM_INT);
+            $stmt->bindParam(':token', $token, PDO::PARAM_STR);
+            $stmt->bindParam(':expires_at', $expires_at, PDO::PARAM_STR);
 
-            $stmt->execute();
-            return $token;
+            if ($stmt->execute()) {
+                return $token;
+            }
+            return null;
         } catch (PDOException $e) {
+            error_log("Remember-me token creation failed: " . $e->getMessage());
             return null;
         }
     }

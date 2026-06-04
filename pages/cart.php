@@ -26,7 +26,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($product_id === null) {
         $_SESSION['error'] = "Invalid product ID.";
-        header("Location: ../index.php");
+        $referrer = $_SERVER['HTTP_REFERER'] ?? '../index.php';
+        header("Location: " . $referrer);
         exit();
     }
 
@@ -34,7 +35,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$item) {
         $_SESSION['error'] = "Product not found.";
-        header("Location: ../index.php");
+        $referrer = $_SERVER['HTTP_REFERER'] ?? '../index.php';
+        header("Location: " . $referrer);
         exit();
     }
 
@@ -49,7 +51,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['error'] = "Cannot add more items. Only " . ($stock - $currentQty) . " item(s) available.";
     }
 
-    header("Location: ../index.php");
+    $referrer = $_SERVER['HTTP_REFERER'] ?? '../index.php';
+    header("Location: " . $referrer);
     exit();
 }
 
@@ -255,6 +258,7 @@ foreach ($_SESSION['cart'] as $id => $qty) {
             </div>
         </div>
     </footer>
+  
 
     <!-- Footer -->
     <footer class="footer">

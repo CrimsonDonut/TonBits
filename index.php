@@ -38,6 +38,7 @@ $username = $is_logged_in ? $_SESSION['username'] : null;
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>tonbits - Premium GPU E-commerce</title>
     <link rel="stylesheet" href="assets/style/style.css">
+    <link rel="stylesheet" href="assets/style/modal-styles.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;600;700;800;900&display=swap">
     <link rel="stylesheet" href="https://fonts.cdnfonts.com/css/cyberpunks">
 </head>
@@ -110,13 +111,10 @@ $username = $is_logged_in ? $_SESSION['username'] : null;
     <?php if ($error): ?>
         <div class="modal-overlay" id="errorModal" style="display: flex;">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h2>Notice</h2>
-                    <button class="modal-close">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <p><?php echo htmlspecialchars($error); ?></p>
-                </div>
+                <button class="modal-close" onclick="document.getElementById('errorModal').style.display='none';">&times;</button>
+                <h2 class="modal-title">Stock Limit</h2>
+                <p class="modal-message"><?php echo htmlspecialchars($error); ?></p>
+                <button class="modal-btn" onclick="document.getElementById('errorModal').style.display='none';">Got it</button>
             </div>
         </div>
     <?php endif; ?>

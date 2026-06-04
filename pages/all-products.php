@@ -9,6 +9,10 @@ if (isset($_SESSION['cart'])) {
     }
 }
 
+// Get error message if it exists
+$error_message = isset($_SESSION['error']) ? $_SESSION['error'] : null;
+unset($_SESSION['error']); // Clear it after reading
+
 require_once "../config/Database.php";
 require_once "../config/auth_helper.php";
 require_once "../models/Product.php";
@@ -41,10 +45,23 @@ $username = $is_logged_in ? $_SESSION['username'] : null;
   <title>All Graphics Cards – tonbits</title>
   <link rel="stylesheet" href="../assets/style/style.css" />
   <link rel="stylesheet" href="../assets/style/products-styles.css" />
+  <link rel="stylesheet" href="../assets/style/modal-styles.css" />
 </head>
 <body>
 <div class="bg-layer"></div>
 <div class="bg-glow-bottom"></div>
+
+<!-- Stock Limit Error Modal -->
+<?php if ($error_message): ?>
+<div class="modal-overlay" id="errorModal" style="display: flex;">
+  <div class="modal-content">
+    <button class="modal-close" onclick="document.getElementById('errorModal').style.display='none';">&times;</button>
+    <h2 class="modal-title">Stock Limit</h2>
+    <p class="modal-message"><?php echo htmlspecialchars($error_message); ?></p>
+    <button class="modal-btn" onclick="document.getElementById('errorModal').style.display='none';">Got it</button>
+  </div>
+</div>
+<?php endif; ?>
 
 <nav class="navbar">
   <div class="nav-container">
@@ -178,7 +195,10 @@ $username = $is_logged_in ? $_SESSION['username'] : null;
                 <h3 class="card-name"><?php echo htmlspecialchars($gpu->name); ?></h3>
                 <p class="card-desc"><?php echo htmlspecialchars(substr($gpu->description, 0, 100)); ?>...</p>
                 <div class="card-footer">
-                  <div class="price-block"><div class="price-current"><?php echo $gpu->formatted_price; ?></div></div>
+                  <div class="price-block">
+                    <div class="price-current"><?php echo $gpu->formatted_price; ?></div>
+                    <div class="stock-info">Stock: <?php echo $gpu->quantity; ?></div>
+                  </div>
                   <?php if ($gpu->in_stock): ?>
                     <form method="POST" action="cart.php" style="margin: 0;">
                       <input type="hidden" name="product_id" value="<?php echo $gpu->id; ?>">
