@@ -89,6 +89,11 @@ $username = $is_logged_in ? $_SESSION['username'] : null;
                             <div class="dropdown-header">
                                 <span class="dropdown-username"><?php echo htmlspecialchars($username); ?></span>
                             </div>
+                            <!-- Show admin dashboard link only if user is admin -->
+                            <?php if (class_exists('AuthHelper') && AuthHelper::isAdmin()): ?>
+                                <a href="admin/dashboard.php" class="dropdown-item">Dashboard</a>
+                            <?php endif; ?>
+
                             <a href="pages/logout.php" class="dropdown-item">Logout</a>
                         <?php else: ?>
                             <a href="pages/login.php" class="dropdown-item">Login</a>

@@ -135,7 +135,7 @@ class AuthHelper {
      */
     public function validateLoginInput($username_or_email, $password) {
         // Query user by email or username
-        $query = "SELECT user_ID, username, email, password FROM users WHERE email = :user OR username = :user";
+        $query = "SELECT user_ID, username, email, password, is_admin FROM users WHERE email = :user OR username = :user";
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':user', $username_or_email);
         $stmt->execute();
@@ -160,7 +160,15 @@ class AuthHelper {
         $_SESSION['user_id'] = $user_data['user_ID'];
         $_SESSION['username'] = $user_data['username'];
         $_SESSION['email'] = $user_data['email'];
+        $_SESSION['is_admin'] = $user_data['is_admin'];
     }
+
+/**
+ * Check if the currently logged-in user is an admin
+ */
+public static function isAdmin() {
+    return self::isLoggedIn() && isset($_SESSION['is_admin']) && $_SESSION['is_admin'] === 1;
+}
 
     /**
      * Check if user is logged in
