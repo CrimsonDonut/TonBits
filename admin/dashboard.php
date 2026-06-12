@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once "../config/auth_helper.php";
+
 if (!AuthHelper::isAdmin()) {
     header("Location: ../pages/login.php");
     exit();

@@ -9,8 +9,8 @@ $database = new Database();
 $db = $database->connect();
 
 // Check if user is logged in and is admin
-if (!AuthHelper::isLoggedIn()) {
-    header("Location: login.php");
+if (!AuthHelper::isAdmin()) {
+    header("Location: ../pages/login.php");
     exit();
 }
 
