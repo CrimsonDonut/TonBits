@@ -244,31 +244,6 @@ foreach ($_SESSION['cart'] as $id => $qty) {
                         <span class="logo-white">ton</span><span class="logo-purple">bits</span>
                     </h3>
                     <p class="footer-tagline">Premium GPU solutions for gamers and creators worldwide</p>
-                </div>
-                <div class="footer-links">
-                    <h4>Quick Links</h4>
-                    <ul>
-                        <li><a href="../index.php">Store</a></li>
-                        <li><a href="cart.php">Cart</a></li>
-                    </ul>
-                </div>
-            </div>
-            <div class="footer-bottom">
-                <p>&copy; 2026 tonbits. All rights reserved.</p>
-            </div>
-        </div>
-    </footer>
-  
-
-    <!-- Footer -->
-    <footer class="footer">
-        <div class="footer-container">
-            <div class="footer-grid">
-                <div class="footer-brand">
-                    <h3 class="logo">
-                        <span class="logo-white">ton</span><span class="logo-purple">bits</span>
-                    </h3>
-                    <p class="footer-tagline">Premium GPU solutions for gamers and creators worldwide</p>
                     <div class="social-links">
                         <a href="https://www.facebook.com/carlanthony.pena" class="social-link">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">

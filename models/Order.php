@@ -7,6 +7,7 @@ class Order {
     private $addresses_table = 'user_addresses';
 
     // Properties
+    public $completed_at;
     public $order_id;
     public $user_id;
     public $address_id;
@@ -164,17 +165,27 @@ class Order {
         return date('Y-m-d ' . $delivery_hours . ':00:00', $timestamp);
     }
 
-    /**
-     * Update order status
+/**
+     * Update order status and set completed_at timestamp if final status
      * @param int $order_id
      * @param string $new_status
      * @return bool Success
      */
     public function updateOrderStatus($order_id, $new_status) {
         try {
-            $query = "UPDATE {$this->table} 
-                     SET status = :status
-                     WHERE order_id = :order_id";
+            // Check if the new status means the order is finalized
+            if (in_array($new_status, ['delivered', 'cancelled'])) {
+                $query = "UPDATE {$this->table} 
+                         SET status = :status,
+                             completed_at = CURRENT_TIMESTAMP
+                         WHERE order_id = :order_id";
+            } else {
+                // If it's rolled back to pending/processing/shipped, reset completion time to null
+                $query = "UPDATE {$this->table} 
+                         SET status = :status,
+                             completed_at = NULL
+                         WHERE order_id = :order_id";
+            }
             
             $stmt = $this->conn->prepare($query);
             $stmt->bindParam(':status', $new_status);
@@ -185,7 +196,6 @@ class Order {
             return false;
         }
     }
-
     /**
      * Get order by ID with address details
      * @param int $order_id
@@ -264,7 +274,7 @@ class Order {
         }
     }
 
-    /**
+/**
      * Get all orders (for admin) with formatted timestamps
      * @param string $status Optional filter by status
      * @return array Orders array
@@ -301,6 +311,10 @@ class Order {
 
                 $order->created_at_formatted = $this->formatTimestamp($order->created_at);
                 $order->estimated_delivery_formatted = $this->formatTimestamp($order->estimated_delivery);
+                
+                // Bulletproof assignment: If completed_at doesn't exist yet, pass null to formatTimestamp
+                $order->completed_at_formatted = $this->formatTimestamp($order->completed_at ?? null);
+                
                 $order->time_since_creation = $this->getTimeSinceCreation($order->created_at);
                 $orders[] = $order;
             }

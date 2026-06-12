@@ -1,4 +1,10 @@
 <?php
+session_start();
+require_once "../config/auth_helper.php";
+if (!AuthHelper::isAdmin()) {
+    header("Location: ../pages/login.php");
+    exit();
+}
 require_once "../config/Database.php";
 require_once "../models/Product.php";
 
@@ -32,8 +38,11 @@ if (!is_array($products)) {
                 <h1 class="logo">
                     <span class="logo-white">ton</span><span class="logo-purple">bits</span>
                 </h1>
+                
             </div>
-
+            <div class="nav-links">
+                <a href="admin_orders.php">Manage Orders</a>
+            </div>
             <button class="btn-shop" onclick="window.location.href='../index.php'">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polyline points="9 18 15 12 9 6"></polyline>

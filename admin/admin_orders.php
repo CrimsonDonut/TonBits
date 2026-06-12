@@ -14,8 +14,7 @@ if (!AuthHelper::isLoggedIn()) {
     exit();
 }
 
-// TODO: Add admin role check here
-// For now, you can manually verify admin status based on your user table structure
+
 
 $order_model = new Order($db);
 
@@ -69,8 +68,6 @@ foreach ($all_orders as $order) {
             </div>
             <div class="nav-links">
                 <a href="dashboard.php">Dashboard</a>
-                <a href="add_product.php">Add Product</a>
-                <a href="admin_orders.php" class="active">Orders</a>
             </div>
         </div>
     </nav>
@@ -162,11 +159,11 @@ foreach ($all_orders as $order) {
                                                 <?php echo ucfirst($order->status); ?>
                                             </span>
                                         </td>
-                                        <td><strong>$<?php echo number_format($order->total_amount, 2); ?></strong></td>
+                                        <td><strong>₱<?php echo number_format($order->total_amount, 2); ?></strong></td>
                                         <td><?php echo $order->estimated_delivery_formatted; ?></td>
                                         <td><?php echo $order->completed_at_formatted; ?></td>
                                         <td>
-                                            <a href="order-details.php?order_id=<?php echo $order->order_id; ?>" class="btn-action-small">View</a>
+                                            <a href="../pages/order-confirmation.php?order_id=<?php echo $order->order_id; ?>" class="btn-action-small">View</a>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>

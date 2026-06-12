@@ -269,7 +269,7 @@ if (isset($_SESSION['cart'])) {
                                     <div class="address-option" style="display: flex; gap: 15px;">
                                         <input type="radio" name="address_id" value="<?php echo htmlspecialchars($addr->address_id); ?>" 
                                                id="addr_<?php echo htmlspecialchars($addr->address_id); ?>" 
-                                               onchange="document.getElementById('address-form').style.display='none'" required>
+                                               onchange="document.getElementById('address-form').style.display='none'" >
                                         <label for="addr_<?php echo htmlspecialchars($addr->address_id); ?>" style="flex: 1; cursor: pointer; margin: 0;">
                                             <strong><?php echo htmlspecialchars($addr->street_address); ?></strong><br>
                                             <?php echo htmlspecialchars($addr->barangay . ', ' . $addr->city . ', ' . $addr->province); ?>

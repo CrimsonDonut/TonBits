@@ -1,4 +1,10 @@
 <?php
+session_start();
+require_once "../config/auth_helper.php";
+if (!AuthHelper::isAdmin()) {
+    header("Location: ../pages/login.php");
+    exit();
+}
 require_once "../config/Database.php";
 require_once "../models/Product.php";
 
