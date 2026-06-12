@@ -4,17 +4,19 @@ class Order {
     private $conn;
     private $table = 'orders';
     private $items_table = 'order_items';
+    private $addresses_table = 'user_addresses';
 
     // Properties
     public $order_id;
     public $user_id;
+    public $address_id;
     public $total_amount;
     public $status;
     public $created_at;
-    public $completed_at;
     public $estimated_delivery;
-    public $shipping_address;
     public $notes;
+    public $payment_method;
+    public $shipping_address; // For backward compatibility, will be loaded from user_addresses
 
     public function __construct($conn) {
         $this->conn = $conn;
@@ -24,11 +26,17 @@ class Order {
      * Create a new order from cart
      * @param int $user_id
      * @param array $cart_items Array of products with quantity
-     * @param string $shipping_address
+     * @param int $address_id Address ID from user_addresses table
+     * @param string $payment_method Payment method (ewallet, cod, card)
      * @param string $notes Optional notes
      * @return array ['success' => bool, 'order_id' => int or null, 'message' => string]
      */
-    public function createOrderFromCart($user_id, $cart_items, $shipping_address, $notes = '') {
+    public function createOrderFromCart($user_id, $cart_items, $address_id, $payment_method, $notes = '') {
+        // Validate payment method
+        $valid_methods = ['ewallet', 'cod', 'card'];
+        if (!in_array($payment_method, $valid_methods)) {
+            return ['success' => false, 'order_id' => null, 'message' => 'Invalid payment method'];
+        }
         try {
             // Calculate total and validate cart
             $total_amount = 0;
@@ -40,30 +48,41 @@ class Order {
                 return ['success' => false, 'order_id' => null, 'message' => 'Cart is empty'];
             }
 
+            // Validate address exists and belongs to user
+            $addr_query = "SELECT address_id FROM {$this->addresses_table} WHERE address_id = :address_id AND user_id = :user_id";
+            $addr_stmt = $this->conn->prepare($addr_query);
+            $addr_stmt->bindParam(':address_id', $address_id);
+            $addr_stmt->bindParam(':user_id', $user_id);
+            $addr_stmt->execute();
+
+            if ($addr_stmt->rowCount() === 0) {
+                return ['success' => false, 'order_id' => null, 'message' => 'Invalid shipping address'];
+            }
+
             // Start transaction
             $this->conn->beginTransaction();
 
-            // Get current timestamp using date()
+            // Get current timestamp
             $created_at = date('Y-m-d H:i:s');
             
             // Calculate estimated delivery date (3-5 business days)
-            // Using strtotime() to add business days
             $estimated_delivery = $this->calculateEstimatedDelivery($created_at);
 
             // Insert order
             $query = "INSERT INTO {$this->table} 
-                      (user_id, total_amount, status, created_at, estimated_delivery, shipping_address, notes) 
-                      VALUES (:user_id, :total_amount, :status, :created_at, :estimated_delivery, :shipping_address, :notes)";
+                      (user_id, address_id, total_amount, status, payment_method, created_at, estimated_delivery, notes) 
+                      VALUES (:user_id, :address_id, :total_amount, :status, :payment_method, :created_at, :estimated_delivery, :notes)";
             
             $stmt = $this->conn->prepare($query);
             
             $status = 'pending';
             $stmt->bindParam(':user_id', $user_id);
+            $stmt->bindParam(':address_id', $address_id);
             $stmt->bindParam(':total_amount', $total_amount);
             $stmt->bindParam(':status', $status);
+            $stmt->bindParam(':payment_method', $payment_method);
             $stmt->bindParam(':created_at', $created_at);
             $stmt->bindParam(':estimated_delivery', $estimated_delivery);
-            $stmt->bindParam(':shipping_address', $shipping_address);
             $stmt->bindParam(':notes', $notes);
 
             if (!$stmt->execute()) {
@@ -75,21 +94,21 @@ class Order {
 
             // Insert order items
             $items_query = "INSERT INTO {$this->items_table} 
-                           (order_id, product_id, quantity, price, subtotal, added_at) 
-                           VALUES (:order_id, :product_id, :quantity, :price, :subtotal, :added_at)";
+                           (order_id, product_id, quantity, price_at_purchase, subtotal) 
+                           VALUES (:order_id, :product_id, :quantity, :price_at_purchase, :subtotal)";
             
             $items_stmt = $this->conn->prepare($items_query);
-            $added_at = date('Y-m-d H:i:s');
 
             foreach ($cart_items as $item) {
                 $subtotal = $item->price * $item->quantity_in_cart;
                 
                 $items_stmt->bindParam(':order_id', $order_id);
-                $items_stmt->bindParam(':product_id', $item->id);
+                // Handle both old 'id' and new 'product_id' property names
+                $product_id = $item->product_id ?? $item->id;
+                $items_stmt->bindParam(':product_id', $product_id);
                 $items_stmt->bindParam(':quantity', $item->quantity_in_cart);
-                $items_stmt->bindParam(':price', $item->price);
+                $items_stmt->bindParam(':price_at_purchase', $item->price);
                 $items_stmt->bindParam(':subtotal', $subtotal);
-                $items_stmt->bindParam(':added_at', $added_at);
 
                 if (!$items_stmt->execute()) {
                     $this->conn->rollBack();
@@ -98,11 +117,12 @@ class Order {
             }
 
             // Update product stock quantities - reduce stock by ordered quantity
-            $stock_update_query = "UPDATE products SET quantity = quantity - :quantity WHERE id = :product_id";
+            $stock_update_query = "UPDATE products SET quantity_in_stock = quantity_in_stock - :quantity WHERE product_id = :product_id";
             $stock_stmt = $this->conn->prepare($stock_update_query);
 
             foreach ($cart_items as $item) {
-                $stock_stmt->bindParam(':product_id', $item->id);
+                $product_id = $item->product_id ?? $item->id;
+                $stock_stmt->bindParam(':product_id', $product_id);
                 $stock_stmt->bindParam(':quantity', $item->quantity_in_cart);
 
                 if (!$stock_stmt->execute()) {
@@ -123,56 +143,41 @@ class Order {
 
     /**
      * Calculate estimated delivery date (3-5 business days from order creation)
-     * Uses strtotime() for date calculations
      * @param string $created_at Order creation timestamp
      * @return string Estimated delivery datetime
      */
     private function calculateEstimatedDelivery($created_at) {
-        // Random business days between 3-5
         $business_days = rand(3, 5);
-        
-        // Convert created_at to strtotime format
         $timestamp = strtotime($created_at);
         
-        // Add business days (skip weekends)
         $days_added = 0;
         while ($days_added < $business_days) {
             $timestamp = strtotime('+1 day', $timestamp);
             $day_of_week = date('N', $timestamp); // 1=Monday, 7=Sunday
             
-            // Skip if Saturday (6) or Sunday (7)
             if ($day_of_week < 6) {
                 $days_added++;
             }
         }
         
-        // Format as datetime string and add 2-4 hours for delivery window
-        $delivery_hours = rand(14, 18); // 2PM to 6PM delivery window
+        $delivery_hours = rand(14, 18);
         return date('Y-m-d ' . $delivery_hours . ':00:00', $timestamp);
     }
 
     /**
-     * Update order status with completion timestamp
+     * Update order status
      * @param int $order_id
      * @param string $new_status
      * @return bool Success
      */
     public function updateOrderStatus($order_id, $new_status) {
         try {
-            $completed_at = null;
-            
-            // If status is 'delivered' or 'cancelled', set completed_at timestamp
-            if ($new_status === 'delivered' || $new_status === 'cancelled') {
-                $completed_at = date('Y-m-d H:i:s');
-            }
-
             $query = "UPDATE {$this->table} 
-                     SET status = :status, completed_at = :completed_at 
+                     SET status = :status
                      WHERE order_id = :order_id";
             
             $stmt = $this->conn->prepare($query);
             $stmt->bindParam(':status', $new_status);
-            $stmt->bindParam(':completed_at', $completed_at);
             $stmt->bindParam(':order_id', $order_id);
 
             return $stmt->execute();
@@ -182,34 +187,45 @@ class Order {
     }
 
     /**
-     * Get order by ID with formatted timestamps
+     * Get order by ID with address details
      * @param int $order_id
      * @return object Order with formatted dates
      */
-public function getOrderById($order_id) {
-    try {
-        $query = "SELECT * FROM {$this->table} WHERE order_id = :order_id";
-        $stmt = $this->conn->prepare($query);
-        $stmt->bindParam(':order_id', $order_id);
-        $stmt->execute();
+    public function getOrderById($order_id) {
+        try {
+            $query = "SELECT o.*, 
+                      ua.street_address, ua.barangay, ua.city, ua.province
+                      FROM {$this->table} o
+                      LEFT JOIN {$this->addresses_table} ua ON o.address_id = ua.address_id
+                      WHERE o.order_id = :order_id";
+            
+            $stmt = $this->conn->prepare($query);
+            $stmt->bindParam(':order_id', $order_id);
+            $stmt->execute();
 
-        $order = $stmt->fetch(PDO::FETCH_OBJ);
+            $order = $stmt->fetch(PDO::FETCH_OBJ);
 
-        if (!$order) {
+            if (!$order) {
+                return null;
+            }
+
+            // Format address for backward compatibility
+            if ($order->street_address) {
+                $order->shipping_address = $order->street_address . ', ' . $order->barangay . 
+                                          ', ' . $order->city . ', ' . $order->province;
+            }
+
+            $order->created_at_formatted = $this->formatTimestamp($order->created_at);
+            $order->estimated_delivery_formatted = $this->formatTimestamp($order->estimated_delivery);
+            $order->time_since_creation = $this->getTimeSinceCreation($order->created_at);
+
+            return $order;
+
+        } catch (PDOException $e) {
             return null;
         }
-
-        $order->created_at_formatted = $this->formatTimestamp($order->created_at);
-        $order->completed_at_formatted = $order->completed_at ? $this->formatTimestamp($order->completed_at) : 'N/A';
-        $order->estimated_delivery_formatted = $this->formatTimestamp($order->estimated_delivery);
-        $order->time_since_creation = $this->getTimeSinceCreation($order->created_at);
-
-        return $order;
-
-    } catch (PDOException $e) {
-        return null;
     }
-}
+
     /**
      * Get all orders for a user with formatted timestamps
      * @param int $user_id
@@ -217,9 +233,12 @@ public function getOrderById($order_id) {
      */
     public function getUserOrders($user_id) {
         try {
-            $query = "SELECT * FROM {$this->table} 
-                     WHERE user_id = :user_id 
-                     ORDER BY created_at DESC";
+            $query = "SELECT o.*,
+                      ua.street_address, ua.barangay, ua.city, ua.province
+                      FROM {$this->table} o
+                      LEFT JOIN {$this->addresses_table} ua ON o.address_id = ua.address_id
+                      WHERE o.user_id = :user_id 
+                      ORDER BY o.created_at DESC";
             
             $stmt = $this->conn->prepare($query);
             $stmt->bindParam(':user_id', $user_id);
@@ -227,8 +246,13 @@ public function getOrderById($order_id) {
 
             $orders = [];
             while ($order = $stmt->fetch(PDO::FETCH_OBJ)) {
+                // Format address for backward compatibility
+                if ($order->street_address) {
+                    $order->shipping_address = $order->street_address . ', ' . $order->barangay . 
+                                              ', ' . $order->city . ', ' . $order->province;
+                }
+
                 $order->created_at_formatted = $this->formatTimestamp($order->created_at);
-                $order->completed_at_formatted = $order->completed_at ? $this->formatTimestamp($order->completed_at) : 'N/A';
                 $order->estimated_delivery_formatted = $this->formatTimestamp($order->estimated_delivery);
                 $order->time_since_creation = $this->getTimeSinceCreation($order->created_at);
                 $orders[] = $order;
@@ -248,13 +272,20 @@ public function getOrderById($order_id) {
     public function getAllOrders($status = null) {
         try {
             if ($status) {
-                $query = "SELECT * FROM {$this->table} 
-                         WHERE status = :status 
-                         ORDER BY created_at DESC";
+                $query = "SELECT o.*,
+                          ua.street_address, ua.barangay, ua.city, ua.province
+                          FROM {$this->table} o
+                          LEFT JOIN {$this->addresses_table} ua ON o.address_id = ua.address_id
+                          WHERE o.status = :status 
+                          ORDER BY o.created_at DESC";
                 $stmt = $this->conn->prepare($query);
                 $stmt->bindParam(':status', $status);
             } else {
-                $query = "SELECT * FROM {$this->table} ORDER BY created_at DESC";
+                $query = "SELECT o.*,
+                          ua.street_address, ua.barangay, ua.city, ua.province
+                          FROM {$this->table} o
+                          LEFT JOIN {$this->addresses_table} ua ON o.address_id = ua.address_id
+                          ORDER BY o.created_at DESC";
                 $stmt = $this->conn->prepare($query);
             }
 
@@ -262,8 +293,13 @@ public function getOrderById($order_id) {
 
             $orders = [];
             while ($order = $stmt->fetch(PDO::FETCH_OBJ)) {
+                // Format address for backward compatibility
+                if ($order->street_address) {
+                    $order->shipping_address = $order->street_address . ', ' . $order->barangay . 
+                                              ', ' . $order->city . ', ' . $order->province;
+                }
+
                 $order->created_at_formatted = $this->formatTimestamp($order->created_at);
-                $order->completed_at_formatted = $order->completed_at ? $this->formatTimestamp($order->completed_at) : 'N/A';
                 $order->estimated_delivery_formatted = $this->formatTimestamp($order->estimated_delivery);
                 $order->time_since_creation = $this->getTimeSinceCreation($order->created_at);
                 $orders[] = $order;
@@ -276,7 +312,7 @@ public function getOrderById($order_id) {
     }
 
     /**
-     * Get order items with timestamps
+     * Get order items
      * @param int $order_id
      * @return array Order items
      */
@@ -284,9 +320,9 @@ public function getOrderById($order_id) {
         try {
             $query = "SELECT oi.*, p.name as product_name 
                      FROM {$this->items_table} oi
-                     JOIN products p ON oi.product_id = p.id
+                     JOIN products p ON oi.product_id = p.product_id
                      WHERE oi.order_id = :order_id
-                     ORDER BY oi.added_at ASC";
+                     ORDER BY oi.item_id ASC";
             
             $stmt = $this->conn->prepare($query);
             $stmt->bindParam(':order_id', $order_id);
@@ -294,7 +330,7 @@ public function getOrderById($order_id) {
 
             $items = [];
             while ($item = $stmt->fetch(PDO::FETCH_OBJ)) {
-                $item->added_at_formatted = $this->formatTimestamp($item->added_at);
+                $item->created_at_formatted = $this->formatTimestamp($item->created_at);
                 $items[] = $item;
             }
 
@@ -305,7 +341,7 @@ public function getOrderById($order_id) {
     }
 
     /**
-     * Format timestamp to readable format using date()
+     * Format timestamp to readable format
      * @param string $timestamp MySQL timestamp
      * @return string Formatted date
      */
@@ -313,12 +349,11 @@ public function getOrderById($order_id) {
         if (empty($timestamp)) {
             return 'N/A';
         }
-        // Convert MySQL timestamp to readable format: Dec 25, 2024 at 3:45 PM
         return date('M d, Y \a\t g:i A', strtotime($timestamp));
     }
 
     /**
-     * Calculate time elapsed since order creation using strtotime()
+     * Calculate time elapsed since order creation
      * @param string $created_at Order creation timestamp
      * @return string Human-readable time difference
      */
@@ -364,10 +399,8 @@ public function getOrderById($order_id) {
 
         if ($status === 'delivered') {
             $timeline['delivery_status'] = 'Delivered';
-            $timeline['completed_date'] = date('M d, Y g:i A', strtotime($order->completed_at));
         } elseif ($status === 'cancelled') {
             $timeline['delivery_status'] = 'Cancelled';
-            $timeline['cancelled_date'] = date('M d, Y g:i A', strtotime($order->completed_at));
         } else {
             $days_until = floor(($estimated - $now) / 86400);
             $timeline['days_until_delivery'] = max(0, $days_until);

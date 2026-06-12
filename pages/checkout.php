@@ -5,6 +5,7 @@ require_once "../config/Database.php";
 require_once "../config/auth_helper.php";
 require_once "../models/Product.php";
 require_once "../models/Order.php";
+require_once "../models/UserAddress.php";
 
 $database = new Database();
 $db = $database->connect();
@@ -18,6 +19,7 @@ if (!AuthHelper::isLoggedIn()) {
 $user_id = $_SESSION['user_id'];
 $product = new Product($db);
 $order_model = new Order($db);
+$address_model = new UserAddress($db);
 
 // Check if cart is empty
 if (!isset($_SESSION['cart']) || empty($_SESSION['cart'])) {
@@ -28,16 +30,52 @@ if (!isset($_SESSION['cart']) || empty($_SESSION['cart'])) {
 
 $error = null;
 $success = null;
+$user_addresses = $address_model->getAddressesByUser($user_id);
 
 // Handle checkout
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $shipping_address = trim(htmlspecialchars($_POST['shipping_address'] ?? '', ENT_QUOTES, 'UTF-8'));
+    $use_new_address = isset($_POST['use_new_address']) ? true : false;
+    $street_address = trim(htmlspecialchars($_POST['street_address'] ?? '', ENT_QUOTES, 'UTF-8'));
+    
+    // If address fields are filled, treat as new address
+    if (!empty($street_address)) {
+        $use_new_address = true;
+    }
+    
     $notes = trim(htmlspecialchars($_POST['notes'] ?? '', ENT_QUOTES, 'UTF-8'));
+    $payment_method = trim(htmlspecialchars($_POST['payment_method'] ?? '', ENT_QUOTES, 'UTF-8'));
+    $address_id = null;
 
-    // Validate shipping address
-    if (empty($shipping_address) || strlen($shipping_address) < 10) {
-        $error = "Please enter a valid shipping address (at least 10 characters).";
+    // Validate payment method first
+    $valid_payment_methods = ['ewallet', 'cod', 'card'];
+    if (empty($payment_method) || !in_array($payment_method, $valid_payment_methods)) {
+        $error = "Please select a payment method.";
+    }
+
+    // Handle address selection
+    if ($use_new_address) {
+        // Create new address
+        $barangay = trim(htmlspecialchars($_POST['barangay'] ?? '', ENT_QUOTES, 'UTF-8'));
+        $city = trim(htmlspecialchars($_POST['city'] ?? '', ENT_QUOTES, 'UTF-8'));
+        $province = trim(htmlspecialchars($_POST['province'] ?? '', ENT_QUOTES, 'UTF-8'));
+
+        if (empty($street_address) || empty($barangay) || empty($city) || empty($province)) {
+            $error = "Please fill in all address fields.";
+        } else {
+            $address_id = $address_model->create($user_id, $street_address, $barangay, $city, $province, false);
+            if (!$address_id) {
+                $error = "Failed to create address.";
+            }
+        }
     } else {
+        // Use existing address
+        $address_id = isset($_POST['address_id']) ? intval($_POST['address_id']) : null;
+        if (empty($address_id)) {
+            $error = "Please select a shipping address.";
+        }
+    }
+
+    if (!$error) {
         // Get cart items
         $cart_items = [];
         $total = 0;
@@ -54,8 +92,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($cart_items)) {
             $error = "Cart items are no longer available.";
         } else {
-            // Create order using Order model (with timestamps)
-            $result = $order_model->createOrderFromCart($user_id, $cart_items, $shipping_address, $notes);
+            // Create order using the new address_id and payment method
+            $result = $order_model->createOrderFromCart($user_id, $cart_items, $address_id, $payment_method, $notes);
 
             if ($result['success']) {
                 // Clear cart session
@@ -97,6 +135,59 @@ if (isset($_SESSION['cart'])) {
     <link rel="stylesheet" href="../assets/style/style.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;600;700;800;900&display=swap">
     <link rel="stylesheet" href="https://fonts.cdnfonts.com/css/cyberpunks">
+    <style>
+        .address-selector { margin: 20px 0; }
+        .address-option { 
+            padding: 15px; 
+            margin: 10px 0; 
+            border: 2px solid #ddd; 
+            border-radius: 5px; 
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .address-option:hover { border-color: #00d4ff; }
+        .address-option input[type="radio"] { margin-right: 10px; }
+        .address-form { 
+            display: none; 
+            padding: 20px; 
+            border: 2px solid #00d4ff; 
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .address-form input { 
+            width: 100%; 
+            padding: 10px; 
+            margin: 10px 0; 
+            border: 1px solid #ddd; 
+            border-radius: 3px;
+        }
+        .payment-methods { 
+            border: 2px solid rgba(255,255,255,0.2); 
+            border-radius: 8px; 
+            padding: 15px;
+            background: rgba(0,0,0,0.3);
+        }
+        .payment-option { 
+            padding: 10px 0; 
+            margin: 8px 0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            transition: all 0.3s;
+        }
+        .payment-option:hover { 
+            color: #00d4ff;
+        }
+        .payment-option input[type="radio"] { 
+            margin-right: 10px;
+            cursor: pointer;
+        }
+        .payment-option label {
+            cursor: pointer;
+            flex: 1;
+            margin: 0;
+        }
+    </style>
 </head>
 <body>
     <!-- Navigation -->
@@ -167,16 +258,52 @@ if (isset($_SESSION['cart'])) {
                         </div>
                     </div>
 
-                    <!-- Shipping Address Field -->
+                    <!-- Shipping Address Selection -->
                     <div class="form-group">
-                        <label for="shipping_address">Shipping Address</label>
-                        <textarea 
-                            id="shipping_address" 
-                            name="shipping_address" 
-                            placeholder="Enter your complete shipping address"
-                            required
-                            rows="4"
-                        ></textarea>
+                        <label>Shipping Address</label>
+                        
+                        <?php if (!empty($user_addresses)): ?>
+                            <div class="address-selector">
+                                <h4>Select from saved addresses:</h4>
+                                <?php foreach ($user_addresses as $addr): ?>
+                                    <div class="address-option" style="display: flex; gap: 15px;">
+                                        <input type="radio" name="address_id" value="<?php echo htmlspecialchars($addr->address_id); ?>" 
+                                               id="addr_<?php echo htmlspecialchars($addr->address_id); ?>" 
+                                               onchange="document.getElementById('address-form').style.display='none'" required>
+                                        <label for="addr_<?php echo htmlspecialchars($addr->address_id); ?>" style="flex: 1; cursor: pointer; margin: 0;">
+                                            <strong><?php echo htmlspecialchars($addr->street_address); ?></strong><br>
+                                            <?php echo htmlspecialchars($addr->barangay . ', ' . $addr->city . ', ' . $addr->province); ?>
+                                            <?php if ($addr->is_default): ?><br><em style="color: #00d4ff;">● Default</em><?php endif; ?>
+                                        </label>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                            <hr style="margin: 20px 0; opacity: 0.3;">
+                            <div style="text-align: center; margin: 20px 0;">
+                                <label style="cursor: pointer; color: #00d4ff;">
+                                    <input type="checkbox" name="use_new_address" onchange="
+                                        if(this.checked) {
+                                            document.getElementById('address-form').style.display='block';
+                                            document.querySelectorAll('input[name=address_id]').forEach(r => r.checked=false);
+                                        } else {
+                                            document.getElementById('address-form').style.display='none';
+                                        }
+                                    ">
+                                    Use a new address
+                                </label>
+                            </div>
+                        <?php else: ?>
+                            <p style="color: #999; margin: 15px 0;">No saved addresses yet. Add one below.</p>
+                        <?php endif; ?>
+
+                        <!-- New Address Form -->
+                        <div id="address-form" class="address-form" style="display: <?php echo empty($user_addresses) ? 'block' : 'none'; ?>;">
+                            <h4 style="margin-top: 0;">Enter New Address</h4>
+                            <input type="text" name="street_address" placeholder="Street Address (e.g., #91 Sitio Bulalacao)">
+                            <input type="text" name="barangay" placeholder="Barangay">
+                            <input type="text" name="city" placeholder="City">
+                            <input type="text" name="province" placeholder="Province">
+                        </div>
                     </div>
 
                     <!-- Notes Field -->
@@ -190,8 +317,27 @@ if (isset($_SESSION['cart'])) {
                         ></textarea>
                     </div>
 
+                    <!-- Payment Method Selection -->
+                    <div class="form-group">
+                        <label>Payment Method</label>
+                        <div class="payment-methods">
+                            <div class="payment-option">
+                                <input type="radio" id="ewallet" name="payment_method" value="ewallet" required>
+                                <label for="ewallet">E-Wallets</label>
+                            </div>
+                            <div class="payment-option">
+                                <input type="radio" id="cod" name="payment_method" value="cod" required>
+                                <label for="cod">Cash on Delivery</label>
+                            </div>
+                            <div class="payment-option">
+                                <input type="radio" id="card" name="payment_method" value="card" required>
+                                <label for="card">Credit/Debit Card</label>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Submit Button -->
-                    <button type="submit" class="btn-submit">Complete Order</button>
+                    <button type="submit" class="btn-submit" onclick="return validateCheckout()">Complete Order</button>
                 </form>
 
                 <!-- Back to Cart Link -->
@@ -201,6 +347,43 @@ if (isset($_SESSION['cart'])) {
             </div>
         </div>
     </section>
+
+    <script>
+        function validateCheckout() {
+            const addressForm = document.getElementById('address-form');
+            const useNewAddress = document.querySelector('input[name="use_new_address"]');
+            const isShowingNewForm = addressForm.style.display !== 'none';
+            
+            // If address form is shown, validate its fields
+            if (isShowingNewForm) {
+                const street = document.querySelector('input[name="street_address"]').value.trim();
+                const barangay = document.querySelector('input[name="barangay"]').value.trim();
+                const city = document.querySelector('input[name="city"]').value.trim();
+                const province = document.querySelector('input[name="province"]').value.trim();
+                
+                if (!street || !barangay || !city || !province) {
+                    alert('Please fill in all address fields.');
+                    return false;
+                }
+            } else {
+                // If using saved address, make sure one is selected
+                const selectedAddress = document.querySelector('input[name="address_id"]:checked');
+                if (!selectedAddress) {
+                    alert('Please select a shipping address.');
+                    return false;
+                }
+            }
+            
+            // Validate payment method
+            const paymentMethod = document.querySelector('input[name="payment_method"]:checked');
+            if (!paymentMethod) {
+                alert('Please select a payment method.');
+                return false;
+            }
+            
+            return true;
+        }
+    </script>
 
     <script src="../assets/js/main.js"></script>
 

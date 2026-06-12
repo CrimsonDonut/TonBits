@@ -175,6 +175,10 @@ $username = $is_logged_in ? $_SESSION['username'] : null;
                 <input type="checkbox" name="memory" value="12" class="filter-checkbox" <?php echo in_array('12', $selected_memory) ? 'checked' : ''; ?>>
                 <span class="custom-checkbox"></span><span class="option-label">12GB</span>
               </label>
+              <label class="filter-option">
+                <input type="checkbox" name="memory" value="8" class="filter-checkbox" <?php echo in_array('8', $selected_memory) ? 'checked' : ''; ?>>
+                <span class="custom-checkbox"></span><span class="option-label">8GB</span>
+              </label>
             </div>
           </div>
         </form>

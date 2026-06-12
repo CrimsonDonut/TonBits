@@ -127,7 +127,7 @@ $delivery_status = $order_model->getDeliveryStatus($order);
                                     <span class="item-qty">Qty: <?php echo $item->quantity; ?></span>
                                 </div>
                                 <div class="item-price">
-                                    <span class="price-each">₱<?php echo number_format($item->price, 2); ?> each</span>
+                                    <span class="price-each">₱<?php echo number_format($item->price_at_purchase, 2); ?> each</span>
                                     <span class="subtotal">₱<?php echo number_format($item->subtotal, 2); ?></span>
                                 </div>
                             </div>

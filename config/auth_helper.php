@@ -21,7 +21,7 @@ class AuthHelper {
         }
 
         // Check if email already exists
-        $query = "SELECT user_ID FROM users WHERE email = :email";
+        $query = "SELECT user_id FROM users WHERE email = :email";
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':email', $email);
         $stmt->execute();
@@ -79,7 +79,7 @@ class AuthHelper {
         }
 
         // Check if username already exists
-        $query = "SELECT user_ID FROM users WHERE username = :username";
+        $query = "SELECT user_id FROM users WHERE username = :username";
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':username', $username);
         $stmt->execute();
@@ -135,7 +135,7 @@ class AuthHelper {
      */
     public function validateLoginInput($username_or_email, $password) {
         // Query user by email or username
-        $query = "SELECT user_ID, username, email, password, is_admin FROM users WHERE email = :user OR username = :user";
+        $query = "SELECT user_id, username, email, password, is_admin FROM users WHERE email = :user OR username = :user";
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':user', $username_or_email);
         $stmt->execute();
@@ -157,18 +157,18 @@ class AuthHelper {
      * Create session for logged-in user
      */
     public function createSession($user_data) {
-        $_SESSION['user_id'] = $user_data['user_ID'];
+        $_SESSION['user_id'] = $user_data['user_id'];
         $_SESSION['username'] = $user_data['username'];
         $_SESSION['email'] = $user_data['email'];
-        $_SESSION['is_admin'] = $user_data['is_admin'];
+        $_SESSION['is_admin'] = $user_data['is_admin'] ?? 0;
     }
 
-/**
- * Check if the currently logged-in user is an admin
- */
-public static function isAdmin() {
-    return self::isLoggedIn() && isset($_SESSION['is_admin']) && $_SESSION['is_admin'] === 1;
-}
+    /**
+     * Check if the currently logged-in user is an admin
+     */
+    public static function isAdmin() {
+        return isset($_SESSION['is_admin']) && $_SESSION['is_admin'] == 1;
+    }
 
     /**
      * Check if user is logged in
@@ -186,10 +186,11 @@ public static function isAdmin() {
             $token = bin2hex(random_bytes(32));
             $expires_at = date('Y-m-d H:i:s', strtotime('+30 days'));
 
-            $query = "INSERT INTO remember_tokens (user_id, token, expires_at) VALUES (:user_id, :token, :expires_at)";
+            $query = "INSERT INTO remember_tokens (user_id, token_hash, expires_at) VALUES (:user_id, :token_hash, :expires_at)";
             $stmt = $this->conn->prepare($query);
             $stmt->bindParam(':user_id', $user_id, PDO::PARAM_INT);
-            $stmt->bindParam(':token', $token, PDO::PARAM_STR);
+            $token_hash = hash('sha256', $token);
+            $stmt->bindParam(':token_hash', $token_hash, PDO::PARAM_STR);
             $stmt->bindParam(':expires_at', $expires_at, PDO::PARAM_STR);
 
             if ($stmt->execute()) {

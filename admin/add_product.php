@@ -16,8 +16,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $description = trim($_POST['description'] ?? '');
         $price = trim($_POST['price'] ?? '');
         $quantity = trim($_POST['quantity'] ?? '');
-        $features = trim($_POST['features'] ?? '');
-        $specifications = trim($_POST['specifications'] ?? '');
+        $features_text = trim($_POST['features'] ?? '');
+        $specifications_text = trim($_POST['specifications'] ?? '');
         $brand = trim($_POST['brand'] ?? '');
         $memory_size = trim($_POST['memory_size'] ?? '');
 
@@ -26,12 +26,32 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             throw new Exception("Product name cannot be empty.");
         }
 
-        if (empty($features)) {
+        if (empty($features_text)) {
             throw new Exception("Features cannot be empty.");
         }
 
-        if (empty($specifications)) {
+        if (empty($specifications_text)) {
             throw new Exception("Specifications cannot be empty.");
+        }
+
+        // Parse features (one per line)
+        $features = array_filter(array_map('trim', explode("\n", $features_text)));
+        if (empty($features)) {
+            throw new Exception("At least one feature is required.");
+        }
+
+        // Parse specifications (key:value pairs, one per line)
+        $specifications = [];
+        $spec_lines = array_filter(array_map('trim', explode("\n", $specifications_text)));
+        foreach ($spec_lines as $line) {
+            if (strpos($line, ':') === false) {
+                throw new Exception("Specifications must be in 'key: value' format.");
+            }
+            [$key, $value] = explode(':', $line, 2);
+            $specifications[trim($key)] = trim($value);
+        }
+        if (empty($specifications)) {
+            throw new Exception("At least one specification is required.");
         }
 
         if (empty($brand)) {
@@ -89,8 +109,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $product->quantity = (int)$quantity;
         $product->brand = $brand;
         $product->memory_size = (int)$memory_size;
-        $product->features = $features;
-        $product->specifications = $specifications;
 
         // Image upload
         $imageName = $_FILES['image']['name'];
@@ -105,9 +123,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $product->quantity,
                 $imageName,
                 $product->brand,
-                $product->memory_size,
-                $product->features,
-                $product->specifications
+                $features,
+                $specifications
             )) {
                 $message = "Product added successfully!";
             } else {
@@ -214,13 +231,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     </div>
 
                     <div class="form-group">
-                        <label for="features" class="form-label">Features (JSON Array)</label>
-                        <textarea id="features" name="features" class="form-textarea" placeholder='["Advanced thermal design", "Maximum performance for gaming", "Next-gen ray tracing technology", "AI-enhanced graphics", "Premium build quality", "Durability"]' required></textarea>
+                        <label for="features" class="form-label">Features (One per line)</label>
+                        <textarea id="features" name="features" class="form-textarea" placeholder="Advanced thermal design&#10;Maximum performance for gaming&#10;Next-gen ray tracing technology&#10;AI-enhanced graphics&#10;Premium build quality&#10;Durability" required></textarea>
                     </div>
 
                     <div class="form-group">
-                        <label for="specifications" class="form-label">Specifications (JSON Object)</label>
-                        <textarea id="specifications" name="specifications" class="form-textarea" placeholder='{"AI Performance": "1406 TOPS", "Memory": "16GB GDDR7", "Boost Clock": "2.61 GHz", "TGP": "285W", "Memory Type": "GDDR7", "Memory Interface": "256-bit", "Ray Tracing": "4th Generation", "Connectivity": "3x DisplayPort 2.1, 1x HDMI 2.1"}' required></textarea>
+                        <label for="specifications" class="form-label">Specifications (Key: Value, one per line)</label>
+                        <textarea id="specifications" name="specifications" class="form-textarea" placeholder="AI Performance: 1406 TOPS&#10;Memory: 16GB GDDR7&#10;Boost Clock: 2.61 GHz&#10;TGP: 285W&#10;Memory Type: GDDR7&#10;Memory Interface: 256-bit&#10;Ray Tracing: 4th Generation&#10;Connectivity: 3x DisplayPort 2.1, 1x HDMI 2.1" required></textarea>
                     </div>
 
                     <div class="form-group">

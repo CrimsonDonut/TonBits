@@ -29,8 +29,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $quantity = trim($_POST['quantity'] ?? '');
         $brand = trim($_POST['brand'] ?? '');
         $memory_size = trim($_POST['memory_size'] ?? '');
-        $features = trim($_POST['features'] ?? '');
-        $specifications = trim($_POST['specifications'] ?? '');
+        $features_text = trim($_POST['features'] ?? '');
+        $specifications_text = trim($_POST['specifications'] ?? '');
 
         // Validate required fields using string testing functions
         if ($id === null) {
@@ -72,12 +72,32 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             throw new Exception("Memory size must be a valid number.");
         }
 
-        if (empty($features)) {
+        if (empty($features_text)) {
             throw new Exception("Features cannot be empty.");
         }
 
-        if (empty($specifications)) {
+        if (empty($specifications_text)) {
             throw new Exception("Specifications cannot be empty.");
+        }
+
+        // Parse features (one per line)
+        $features = array_filter(array_map('trim', explode("\n", $features_text)));
+        if (empty($features)) {
+            throw new Exception("At least one feature is required.");
+        }
+
+        // Parse specifications (key:value pairs, one per line)
+        $specifications = [];
+        $spec_lines = array_filter(array_map('trim', explode("\n", $specifications_text)));
+        foreach ($spec_lines as $line) {
+            if (strpos($line, ':') === false) {
+                throw new Exception("Specifications must be in 'key: value' format.");
+            }
+            [$key, $value] = explode(':', $line, 2);
+            $specifications[trim($key)] = trim($value);
+        }
+        if (empty($specifications)) {
+            throw new Exception("At least one specification is required.");
         }
         
         // String Testing: str_word_count() - Validate description has meaningful content
@@ -120,7 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
         }
 
-        if ($product->updateProduct($id, $name, $description, $price, $quantity, $imageName, $brand, $memory_size, $features, $specifications)) {
+        if ($product->updateProduct($id, $name, $description, $price, $quantity, $imageName, $brand, $features, $specifications)) {
             $message = "Product updated successfully!";
         } else {
             $message = "Update failed.";
@@ -229,13 +249,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         </div>
 
                         <div class="form-group">
-                            <label for="features" class="form-label">Features (JSON Array)</label>
-                            <textarea id="features" name="features" class="form-textarea" required><?php echo htmlspecialchars(is_array($current->features) ? json_encode($current->features) : $current->features); ?></textarea>
+                            <label for="features" class="form-label">Features (One per line)</label>
+                            <textarea id="features" name="features" class="form-textarea" required><?php echo implode("\n", $current->features); ?></textarea>
                         </div>
 
                         <div class="form-group">
-                            <label for="specifications" class="form-label">Specifications (JSON Object)</label>
-                            <textarea id="specifications" name="specifications" class="form-textarea" required><?php echo htmlspecialchars(is_array($current->specifications) ? json_encode($current->specifications) : $current->specifications); ?></textarea>
+                            <label for="specifications" class="form-label">Specifications (Key: Value, one per line)</label>
+                            <textarea id="specifications" name="specifications" class="form-textarea" required><?php 
+                                foreach ($current->specifications as $key => $value) {
+                                    echo htmlspecialchars($key . ': ' . $value) . "\n";
+                                }
+                            ?></textarea>
                         </div>
 
                         <div class="form-group">
