@@ -209,11 +209,13 @@ class AuthHelper {
      */
     public function verifyRememberMeToken($token) {
         try {
-            $query = "SELECT u.user_ID, u.username, u.email, rt.expires_at FROM remember_tokens rt 
-                      JOIN users u ON rt.user_id = u.user_ID 
-                      WHERE rt.token = :token AND rt.expires_at > NOW()";
+            $query = "SELECT u.user_id, u.username, u.email, u.is_admin, rt.expires_at 
+                    FROM remember_tokens rt 
+                    JOIN users u ON rt.user_id = u.user_id 
+                    WHERE rt.token_hash = :token_hash AND rt.expires_at > NOW()";
             $stmt = $this->conn->prepare($query);
-            $stmt->bindParam(':token', $token);
+            $token_hash = hash('sha256', $token);
+            $stmt->bindParam(':token_hash', $token_hash);
             $stmt->execute();
 
             if ($stmt->rowCount() === 0) {
