@@ -8,6 +8,7 @@ if (!AuthHelper::isAdmin()) {
 }
 require_once "../config/Database.php";
 require_once "../models/Product.php";
+require_once "../models/Order.php";
 
 $database = new Database();
 $db = $database->connect();
@@ -19,6 +20,9 @@ $products = $product->getAllProducts();
 if (!is_array($products)) {
     $products = array();
 }
+
+$order_model = new Order($db);
+$stats = $order_model->getOrderStats();
 ?>
 
 <!DOCTYPE html>
@@ -72,6 +76,29 @@ if (!is_array($products)) {
                     </button>
                 </div>
             </div>
+    <!-- Order Statistics -->
+            <div class="status-stats" style="margin-bottom: 2rem;">
+                <div class="stat-card">
+                    <div class="stat-label">Total Orders</div>
+                    <div class="stat-value"><?php echo $stats['total_orders']; ?></div>
+                </div>
+                <div class="stat-card delivered">
+                    <div class="stat-label">Total Revenue</div>
+                    <div class="stat-value">₱<?php echo number_format($stats['total_revenue'], 2); ?></div>
+                </div>
+                <div class="stat-card pending">
+                    <div class="stat-label">Pending</div>
+                    <div class="stat-value"><?php echo $stats['pending_count']; ?></div>
+                </div>
+                <div class="stat-card shipped">
+                    <div class="stat-label">Shipped</div>
+                    <div class="stat-value"><?php echo $stats['shipped_count']; ?></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Top Product</div>
+                    <div class="stat-value" style="font-size: 0.85rem;"><?php echo htmlspecialchars($stats['top_product']); ?> (<?php echo $stats['top_product_sold']; ?> sold)</div>
+                </div>
+            </div>            
 
             <div class="table-container">
                 <div class="table-wrapper">

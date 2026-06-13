@@ -324,6 +324,57 @@ class Order {
             return [];
         }
     }
+    /**
+ * Get order statistics using aggregate queries
+ * @return array Stats with total_revenue, order_count, and status breakdown
+ */
+    public function getOrderStats() {
+        try {
+            // SUM and COUNT aggregation — total revenue excluding cancelled orders
+            $revenue_query = "SELECT 
+                                COUNT(*) AS total_orders,
+                                SUM(total_amount) AS total_revenue,
+                                SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending_count,
+                                SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END) AS processing_count,
+                                SUM(CASE WHEN status = 'shipped' THEN 1 ELSE 0 END) AS shipped_count,
+                                SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) AS delivered_count,
+                                SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) AS cancelled_count
+                            FROM {$this->table}";
+            $stmt = $this->conn->prepare($revenue_query);
+            $stmt->execute();
+            $totals = $stmt->fetch(PDO::FETCH_OBJ);
+
+            // Subquery — best selling product
+            $top_query = "SELECT p.name, SUM(oi.quantity) AS total_sold
+                        FROM {$this->items_table} oi
+                        JOIN products p ON oi.product_id = p.product_id
+                        GROUP BY oi.product_id, p.name
+                        ORDER BY total_sold DESC
+                        LIMIT 1";
+            $stmt2 = $this->conn->prepare($top_query);
+            $stmt2->execute();
+            $top_product = $stmt2->fetch(PDO::FETCH_OBJ);
+
+            return [
+                'total_orders'     => $totals->total_orders ?? 0,
+                'total_revenue'    => $totals->total_revenue ?? 0,
+                'pending_count'    => $totals->pending_count ?? 0,
+                'processing_count' => $totals->processing_count ?? 0,
+                'shipped_count'    => $totals->shipped_count ?? 0,
+                'delivered_count'  => $totals->delivered_count ?? 0,
+                'cancelled_count'  => $totals->cancelled_count ?? 0,
+                'top_product'      => $top_product->name ?? 'N/A',
+                'top_product_sold' => $top_product->total_sold ?? 0,
+            ];
+        } catch (PDOException $e) {
+            return [
+                'total_orders' => 0, 'total_revenue' => 0,
+                'pending_count' => 0, 'processing_count' => 0,
+                'shipped_count' => 0, 'delivered_count' => 0,
+                'cancelled_count' => 0, 'top_product' => 'N/A', 'top_product_sold' => 0
+            ];
+        }
+    }
 
     /**
      * Get order items
