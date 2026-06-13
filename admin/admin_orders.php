@@ -14,8 +14,6 @@ if (!AuthHelper::isAdmin()) {
     exit();
 }
 
-
-
 $order_model = new Order($db);
 
 // Get filter status if provided
@@ -25,6 +23,22 @@ $valid_statuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled']
 if ($status_filter && !in_array($status_filter, $valid_statuses)) {
     $status_filter = null;
 }
+$order_model = new Order($db);
+
+// Handle status update POST
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['order_id'], $_POST['new_status'])) {
+    $allowed_statuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+    $new_status = $_POST['new_status'];
+    $order_id = (int) $_POST['order_id'];
+
+    if (in_array($new_status, $allowed_statuses) && $order_id > 0) {
+        $order_model->updateOrderStatus($order_id, $new_status);
+    }
+    header("Location: admin_orders.php" . ($status_filter ? "?status=$status_filter" : ""));
+    exit();
+}
+
+// Get filter status if provided
 
 // Get orders with optional status filter
 $orders = $status_filter ? $order_model->getAllOrders($status_filter) : $order_model->getAllOrders();
@@ -163,7 +177,20 @@ foreach ($all_orders as $order) {
                                         <td><?php echo $order->estimated_delivery_formatted; ?></td>
                                         <td><?php echo $order->completed_at_formatted; ?></td>
                                         <td>
-                                            <a href="../pages/order-confirmation.php?order_id=<?php echo $order->order_id; ?>" class="btn-action-small">View</a>
+                                            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                                                <a href="../pages/order-confirmation.php?order_id=<?php echo $order->order_id; ?>" class="btn-action-small">View</a>
+                                                <form method="POST" style="display:flex; gap:4px; align-items:center;">
+                                                    <input type="hidden" name="order_id" value="<?php echo $order->order_id; ?>">
+                                                    <select name="new_status" class="status-filter" style="padding:4px 6px; font-size:0.78rem;">
+                                                        <?php foreach ($valid_statuses as $s): ?>
+                                                            <option value="<?php echo $s; ?>" <?php echo $order->status === $s ? 'selected' : ''; ?>>
+                                                                <?php echo ucfirst($s); ?>
+                                                            </option>
+                                                        <?php endforeach; ?>
+                                                    </select>
+                                                    <button type="submit" class="btn-action-small" style="background:var(--accent-purple);">Update</button>
+                                                </form>
+                                            </div>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>

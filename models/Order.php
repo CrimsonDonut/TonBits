@@ -333,7 +333,7 @@ class Order {
             // SUM and COUNT aggregation — total revenue excluding cancelled orders
             $revenue_query = "SELECT 
                                 COUNT(*) AS total_orders,
-                                SUM(total_amount) AS total_revenue,
+                                SUM(CASE WHEN status = 'delivered' THEN total_amount ELSE 0 END) AS total_revenue,
                                 SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending_count,
                                 SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END) AS processing_count,
                                 SUM(CASE WHEN status = 'shipped' THEN 1 ELSE 0 END) AS shipped_count,
@@ -375,6 +375,7 @@ class Order {
             ];
         }
     }
+    
 
     /**
      * Get order items
