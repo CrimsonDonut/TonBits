@@ -25,12 +25,20 @@ $product = new Product($db);
 // Get filter parameters from GET
 $selected_brands = isset($_GET['brand']) ? (array)$_GET['brand'] : [];
 $selected_memory = isset($_GET['memory']) ? array_map('strval', (array)$_GET['memory']) : [];
+$sort_by = isset($_GET['sort']) ? $_GET['sort'] : 'newest';
+
+$sort_labels = [
+    'newest' => 'Newest',
+    'price_low' => 'Price: Low to High',
+    'price_high' => 'Price: High to Low'
+];
+$current_sort_label = isset($sort_labels[$sort_by]) ? $sort_labels[$sort_by] : 'Newest';
 
 // Apply filters if any are selected
 if (!empty($selected_brands) || !empty($selected_memory)) {
-    $products = $product->getFilteredProducts($selected_brands, $selected_memory);
+    $products = $product->getFilteredProducts($selected_brands, $selected_memory, $sort_by);
 } else {
-    $products = $product->getAllProducts();
+    $products = $product->getAllProducts($sort_by);
 }
 
 $is_logged_in = AuthHelper::isLoggedIn();
@@ -46,12 +54,65 @@ $username = $is_logged_in ? $_SESSION['username'] : null;
   <link rel="stylesheet" href="../assets/style/style.css" />
   <link rel="stylesheet" href="../assets/style/products-styles.css" />
   <link rel="stylesheet" href="../assets/style/modal-styles.css" />
+
 </head>
 <body>
+    <style>
+  /* Container to align things and position our arrow icon */
+  .sort-dropdown-container {
+    position: relative;
+    display: inline-block;
+  }
+
+  /* Make the select mimic your original button perfectly */
+  .sort-dropdown-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    
+    /* Inherit layout properties from your existing .sort-btn class */
+    background: var(--card-bg, rgba(255, 255, 255, 0.03)); 
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 0.6rem 2.5rem 0.6rem 1rem; /* Extra right padding for the icon */
+    font-size: 0.9rem;
+    font-family: inherit;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    outline: none;
+  }
+
+  /* Subtle hover state */
+  .sort-dropdown-select:hover {
+    border-color: #aa00ff; /* Your signature purple accent color */
+    background: rgba(170, 0, 255, 0.05);
+  }
+
+  /* Target the dropdown overlay menu options */
+  .sort-dropdown-select option {
+    background-color: #120e24; /* Dark purple/black matching your theme */
+    color: #ffffff;
+    padding: 10px;
+  }
+
+  /* Vector arrow positioning */
+  .sort-dropdown-icon {
+    width: 14px;
+    height: 14px;
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none; /* Allows clicks to pass through to the select element */
+    color: rgba(255, 255, 255, 0.6);
+  }
+</style>
+
 <div class="bg-layer"></div>
 <div class="bg-glow-bottom"></div>
 
-<!-- Stock Limit Error Modal -->
+<!--Error pag lagpas order stock limit-->
 <?php if ($error_message): ?>
 <div class="modal-overlay" id="errorModal" style="display: flex;">
   <div class="modal-content">
@@ -136,13 +197,20 @@ $username = $is_logged_in ? $_SESSION['username'] : null;
       </div>
     </div>
 
-    <div class="toolbar">
-      <span class="product-count"><?php echo count($products); ?> products</span>
-      <button class="sort-btn">
-        Sort: <span class="sort-value">Newest</span>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-      </button>
+  <div class="toolbar">
+    <span class="product-count"><?php echo count($products); ?> products</span>
+    
+    <div class="sort-dropdown-container">
+      <select id="sortSelect" class="sort-dropdown-select">
+        <option value="newest" <?php echo $sort_by === 'newest' ? 'selected' : ''; ?>>Sort: Newest</option>
+        <option value="price_low" <?php echo $sort_by === 'price_low' ? 'selected' : ''; ?>>Sort: Price: Low to High</option>
+        <option value="price_high" <?php echo $sort_by === 'price_high' ? 'selected' : ''; ?>>Sort: Price: High to Low</option>
+      </select>
+      <svg class="sort-dropdown-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="6 9 12 15 18 9"/>
+      </svg>
     </div>
+  </div>  
 
     <div class="layout">
       <aside class="sidebar">
@@ -229,33 +297,47 @@ $username = $is_logged_in ? $_SESSION['username'] : null;
 
 <script src="../assets/js/main.js"></script>
 <script>
-// Simple event delegation for all checkboxes
+// Master function to gather and transition states
+function updateFilters() {
+  const currentParams = new URLSearchParams(window.location.search);
+  const newParams = new URLSearchParams();
+  
+  // 1. Maintain active Brand tags
+  const currentBrands = currentParams.getAll('brand');
+  currentBrands.forEach(b => newParams.append('brand', b));
+  
+  // 2. Fetch current Checkbox selections 
+  const memory = Array.from(document.querySelectorAll('input[name="memory"]:checked')).map(el => el.value);
+  memory.forEach(m => newParams.append('memory', m));
+  
+  // 3. Fetch Sorting criteria
+  const sortSelect = document.getElementById('sortSelect');
+  if (sortSelect && sortSelect.value !== 'newest') {
+    newParams.append('sort', sortSelect.value);
+  }
+  
+  // Navigate smoothly
+  const url = newParams.toString() ? '?' + newParams.toString() : window.location.pathname;
+  window.location.href = url;
+}
+
+// Event Listeners for Filters Form
 const filterForm = document.getElementById('filterForm');
 if (filterForm) {
   filterForm.addEventListener('change', function(e) {
     if (e.target.classList.contains('filter-checkbox')) {
-      // Get current URL parameters to preserve brand filter
-      const currentParams = new URLSearchParams(window.location.search);
-      const memory = Array.from(document.querySelectorAll('input[name="memory"]:checked')).map(el => el.value);
-      
-      // Build URL with preserved brand parameter
-      const params = new URLSearchParams();
-      
-      // Preserve brand parameter from current URL
-      const currentBrands = currentParams.getAll('brand');
-      currentBrands.forEach(b => params.append('brand', b));
-      
-      // Add selected memory filters
-      memory.forEach(m => params.append('memory', m));
-      
-      // Navigate
-      const url = params.toString() ? '?' + params.toString() : window.location.pathname;
-      window.location.href = url;
+      updateFilters();
     }
   }, true);
 }
 
-// Update custom checkbox styling
+// Event Listener for the Sorting Dropdown
+const sortSelect = document.getElementById('sortSelect');
+if (sortSelect) {
+  sortSelect.addEventListener('change', updateFilters);
+}
+
+// Keep your custom checkbox styling logic active
 function updateAllCheckboxStyling() {
   document.querySelectorAll('.filter-checkbox').forEach(checkbox => {
     const customCheckbox = checkbox.parentElement.querySelector('.custom-checkbox');
@@ -271,14 +353,12 @@ function updateAllCheckboxStyling() {
   });
 }
 
-// Initialize and update styling when checkboxes change
 updateAllCheckboxStyling();
 document.querySelectorAll('.filter-checkbox').forEach(checkbox => {
   checkbox.addEventListener('change', updateAllCheckboxStyling);
 });
 </script>
 
-    <!-- Footer -->
     <footer class="footer">
         <div class="footer-container">
             <div class="footer-grid">

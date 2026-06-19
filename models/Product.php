@@ -7,7 +7,7 @@ class Product {
     private $features_table = "product_features";
     
     public $product_id;
-    public $id;  // Alias for product_id for backward compatibility
+    public $id;  
     public $name;
     public $description;
     public $price;
@@ -36,7 +36,7 @@ class Product {
 
     public function __set($name, $value) {
         if ($name === "price" && $value < 0) {
-            throw new Exception("Price cannot be negative");
+            throw new Exception("Price cannot be negative!");
         }
 
         if (($name === "quantity" || $name === "quantity_in_stock") && $value < 0) {
@@ -61,11 +61,10 @@ class Product {
         $this->conn = $db;
     }
 
-    /**
-     * Get all products with their specifications and features
-     */
-    public function getAllProducts(): array {
-        $query = "SELECT * FROM " . $this->table . " ORDER BY product_id DESC";
+
+    public function getAllProducts(string $sort_by = 'newest'): array {
+        $query = "SELECT * FROM " . $this->table . $this->getOrderClause($sort_by);
+        
         $stmt = $this->conn->prepare($query);
         $stmt->execute();
 
@@ -80,64 +79,73 @@ class Product {
 
         return $products;
     }
-
-    /**
-     * Get filtered products by brand and specifications
-     */
-    public function getFilteredProducts($brands = [], $memory_sizes = []): array {
-        $query = "SELECT * FROM " . $this->table . " WHERE 1=1";
-        
-        if (!empty($brands)) {
-            $placeholders = implode(',', array_fill(0, count($brands), '?'));
-            $query .= " AND brand IN (" . $placeholders . ")";
+    
+    private function getOrderClause(string $sort_by): string {
+        switch ($sort_by) {
+            case 'price_low':
+                return " ORDER BY price ASC";
+            case 'price_high':
+                return " ORDER BY price DESC";
+            case 'newest':
+    default:
+                return " ORDER BY product_id DESC";
         }
-        
-        $stmt = $this->conn->prepare($query);
-        
-        $params = array_merge($brands);
-        foreach ($params as $index => $param) {
-            $stmt->bindValue($index + 1, $param);
-        }
-        
-        $stmt->execute();
-        $products = [];
+    }
 
-        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $product = $this->mapRowToProduct($row);
+//get filtered products based on selected brands and memory sizes
+public function getFilteredProducts($brands = [], $memory_sizes = [], string $sort_by = 'newest'): array {
+    $query = "SELECT * FROM " . $this->table . " WHERE 1=1";
+    
+    if (!empty($brands)) {
+        $placeholders = implode(',', array_fill(0, count($brands), '?'));
+        $query .= " AND brand IN (" . $placeholders . ")";
+    }
+    
+
+    $query .= $this->getOrderClause($sort_by);
+    
+    $stmt = $this->conn->prepare($query);
+    
+    $params = array_merge($brands);
+    foreach ($params as $index => $param) {
+        $stmt->bindValue($index + 1, $param);
+    }
+    
+    $stmt->execute();
+    $products = [];
+
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $product = $this->mapRowToProduct($row);
+        
+        if (!empty($memory_sizes)) {
+            $specs = $this->getProductSpecifications($product->product_id);
             
-            // Filter by memory size if specified
-            if (!empty($memory_sizes)) {
-                $specs = $this->getProductSpecifications($product->product_id);
-                
-                // Check if product matches any selected memory size
-                $matches_memory = false;
-                foreach ($memory_sizes as $memory_size) {
-                    foreach ($specs as $spec_key => $spec_value) {
-                        // Check if spec_key is "Memory" and value starts with the memory size (e.g., "32GB GDDR7" for "32")
-                        if ($spec_key === 'Memory' && stripos($spec_value, $memory_size . 'GB') === 0) {
-                            $matches_memory = true;
-                            break 2;
-                        }
+            // Check if product matches any selected memory size
+            $matches_memory = false;
+            foreach ($memory_sizes as $memory_size) {
+                foreach ($specs as $spec_key => $spec_value) {
+                    if ($spec_key === 'Memory' && stripos($spec_value, $memory_size . 'GB') === 0) {
+                        $matches_memory = true;
+                        break 2;
                     }
-                }
-                
-                // Skip product if it doesn't match any selected memory size
-                if (!$matches_memory) {
-                    continue;
                 }
             }
             
-            $product->specifications = $this->getProductSpecifications($product->product_id);
-            $product->features = $this->getProductFeatures($product->product_id);
-            $products[] = $product;
+            // Skip product if it doesn't match any selected memory size
+            if (!$matches_memory) {
+                continue;
+            }
         }
-
-        return $products;
+        
+        $product->specifications = $this->getProductSpecifications($product->product_id);
+        $product->features = $this->getProductFeatures($product->product_id);
+        $products[] = $product;
     }
 
-    /**
-     * Add a new product
-     */
+    return $products;
+}
+
+    // Add a new product with features and specifications
     public function addProduct($name, $description, $price, $quantity, $image, $brand = 'NVIDIA', $features = [], $specifications = []) {
         try {
             $this->conn->beginTransaction();

@@ -1,6 +1,12 @@
 /* ============================================
    RESET & BASE STYLES
    ============================================ */
+html, body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -473,16 +479,16 @@ img {
     margin: 0 auto;
 }
 
-/* ============================================
-   PRODUCT CARDS
-   ============================================ */
+/*
+PRODUCT CARDS
+*/
 .products-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1.65rem;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 2rem;
     max-width: 1200px;
-    margin: 0 auto;
-    justify-items: center;
+    justify-content: center; 
+    justify-items: center;   
 }
 
 .product-card {
@@ -531,7 +537,7 @@ img {
     transition: all 0.3s;
     overflow: hidden;
     flex: 1;
-    width: 500%;
+    width: 100%;
     max-width: 320px;
 }
 
@@ -1233,6 +1239,117 @@ img {
 
 .empty-state .btn-admin {
     margin: 0 auto;
+}
+
+/* ---- Cart table: responsive card layout ----
+   Below 768px the table no longer has room for 5 columns next to a
+   120px product image, which was causing wrapped text to overlap
+   between columns. We swap to a stacked "card per item" layout
+   instead, using the th labels (mirrored via data-label on each td)
+   as inline field labels. Scoped to .cart-table so the shared
+   admin/orders tables elsewhere are untouched. */
+@media (max-width: 768px) {
+    .cart-table-container {
+        background: transparent;
+        border: none;
+        backdrop-filter: none;
+        padding: 0;
+    }
+
+    .cart-table thead {
+        display: none;
+    }
+
+    .cart-table,
+    .cart-table tbody,
+    .cart-table tr,
+    .cart-table td {
+        display: block;
+        width: 100%;
+    }
+
+    .cart-table tbody tr {
+        margin-bottom: 1rem;
+        background: linear-gradient(135deg, rgba(30, 0, 58, 0.4), rgba(14, 0, 29, 0.4));
+        border: 1px solid rgba(170, 0, 255, 0.2);
+        border-radius: 0.75rem;
+    }
+
+    .cart-table tbody tr:last-child {
+        margin-bottom: 0;
+    }
+
+    .cart-table tbody tr:hover {
+        background: linear-gradient(135deg, rgba(30, 0, 58, 0.4), rgba(14, 0, 29, 0.4));
+    }
+
+    .cart-table td {
+        padding: 0.65rem 1rem;
+        border-bottom: 1px solid rgba(170, 0, 255, 0.1);
+    }
+
+    .cart-table td:last-child {
+        border-bottom: none;
+    }
+
+    .cart-table td[data-label] {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+
+    .cart-table td[data-label]::before {
+        content: attr(data-label);
+        flex-shrink: 0;
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.05em;
+        color: #aa00ff;
+    }
+
+    .cart-item-image {
+        width: 64px;
+        height: 64px;
+        margin-right: 0.75rem;
+    }
+
+    .product-row {
+        gap: 0.75rem;
+    }
+
+    .cart-footer {
+        justify-content: center;
+    }
+
+    .cart-summary-box {
+        width: 100%;
+        min-width: 0;
+    }
+}
+
+@media (max-width: 480px) {
+    .admin-section {
+        padding: 1.5rem 1rem;
+    }
+
+    .cart-table td {
+        padding: 0.6rem 0.85rem;
+    }
+
+    .cart-item-image {
+        width: 52px;
+        height: 52px;
+    }
+
+    .product-row span {
+        font-size: 0.9rem;
+    }
+
+    .cart-summary-box {
+        padding: 1.5rem;
+    }
 }
 
 /* ============================================
@@ -2194,6 +2311,7 @@ img {
    RESPONSIVE ORDER PAGES
    ============================================ */
 @media (max-width: 768px) {
+    
     .order-confirmation-section {
         padding: 1rem;
         margin-top: 60px;
@@ -2919,4 +3037,104 @@ img {
 .spec-detail {
     font-weight: 600;
     color: white;
+}
+
+/* ==========================================================================
+   RESPONSIVE DESIGN OVERRIDES
+   ========================================================================== */
+
+/* Tablet & Smaller Screens (Under 1024px) */
+@media screen and (max-width: 1024px) {
+    .hero-container {
+        grid-template-columns: 1fr; /* Switch split columns to a single stack */
+        gap: 4rem;
+        text-align: center;
+    }
+
+    .hero-content {
+        align-items: center;
+    }
+
+    .hero-badge {
+        margin: 0 auto;
+    }
+
+    .hero-description {
+        margin: 0 auto;
+    }
+
+    .hero-buttons {
+        justify-content: center;
+    }
+
+    .hero-stats {
+        max-width: 500px;
+        margin: 0 auto;
+        width: 100%;
+    }
+
+    .hero-image {
+        max-width: 500px;
+        margin: 0 auto;
+        width: 100%;
+    }
+
+    .products-grid {
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); /* Adaptive card sizes */
+        padding: 0 1rem;
+    }
+
+    .section-title {
+        font-size: 2.75rem; /* Downscale large cyberpunk section text */
+    }
+}
+
+/* ==========================================================================
+   MOBILE NAV RESPONSIVENESS OVERRIDES
+   ========================================================================== */
+@media screen and (max-width: 768px) {
+    /* 1. Stack elements compactly or wrap fluidly */
+    .nav-container {
+        padding: 1rem;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    /* 2. Scale down the brand logo text and size */
+    .logo {
+        font-size: 1.5rem !important; /* Makes the logo smaller */
+        letter-spacing: 1px;
+    }
+
+    /* 3. Keep nav links visible but aligned cleanly */
+    .nav-links {
+        display: flex !important; /* Force visibility */
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 1rem;
+        width: 100%;
+    }
+
+    .nav-links a {
+        font-size: 0.85rem; /* Slightly smaller typography */
+        padding: 4px 8px;
+    }
+
+    /* 4. Downscale header actions & buttons */
+    .nav-actions {
+        gap: 0.75rem;
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* Downscale action icons or buttons like Cart and Login text */
+    .cart-btn, .login-btn, .nav-actions a, .nav-actions button {
+        padding: 0.5rem 1rem !important;
+        font-size: 0.8rem !important;
+    }
+    
+    .cart-icon, .nav-actions svg {
+        width: 16px !important;
+        height: 16px !important;
+    }
 }

@@ -168,7 +168,6 @@ $delivery_status = $order_model->getDeliveryStatus($order);
 
     <script src="../assets/js/main.js"></script>
 
-    <!-- Footer -->
     <footer class="footer">
         <div class="footer-container">
             <div class="footer-grid">

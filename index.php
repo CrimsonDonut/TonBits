@@ -60,7 +60,7 @@ $username = $is_logged_in ? $_SESSION['username'] : null;
                         <a href="pages/all-products.php?brand=AMD" class="dropdown-item">AMD</a>
                     </div>
                 </div>
-                <a href="#support">Support</a>
+
             </div>
             <div class="nav-buttons">
                 <button class="btn-shop" onclick="window.location.href='pages/cart.php'">
@@ -126,10 +126,7 @@ $username = $is_logged_in ? $_SESSION['username'] : null;
 
     <!-- Hero Section -->
     <section class="hero-section">
-        <div class="hero-lines">
-            <div class="line-left"></div>
-            <div class="line-right"></div>
-        </div>
+
         <div class="hero-container">
             <div class="hero-content">
                 <div class="hero-badge">
@@ -147,13 +144,13 @@ $username = $is_logged_in ? $_SESSION['username'] : null;
                     Advanced cooling, AI-enhanced graphics, and unprecedented power delivery.
                 </p>
                 <div class="hero-buttons">
-                    <button class="btn-primary">
-                        Explore GPUs
+                    <button class="btn-primary" onclick="window.location.href='pages/all-products.php'">
+                        Explore GPU s
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="9 18 15 12 9 6"></polyline>
                         </svg>
                     </button>
-                    <button class="btn-secondary">Learn More</button>
+                 
                 </div>
                 <div class="hero-stats">
                     <div class="stat">

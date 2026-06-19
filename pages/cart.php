@@ -159,9 +159,9 @@ foreach ($_SESSION['cart'] as $id => $qty) {
             <?php endif; ?>
 
             <?php if (!empty($cartItems)): ?>
-                <div class="table-container">
+                <div class="table-container cart-table-container">
                     <div class="table-wrapper">
-                        <table class="admin-table">
+                        <table class="admin-table cart-table">
                             <thead>
                                 <tr>
                                     <th>Product</th>
@@ -182,10 +182,10 @@ foreach ($_SESSION['cart'] as $id => $qty) {
                                                 <span><?php echo htmlspecialchars($item->name); ?></span>
                                             </div>
                                         </td>
-                                        <td>₱<?php echo number_format($item->price, 2); ?></td>
-                                        <td><?php echo $item->quantity_in_cart; ?></td>
-                                        <td>₱<?php echo number_format($itemTotal, 2); ?></td>
-                                        <td>
+                                        <td data-label="Price">₱<?php echo number_format($item->price, 2); ?></td>
+                                        <td data-label="Quantity"><?php echo $item->quantity_in_cart; ?></td>
+                                        <td data-label="Subtotal">₱<?php echo number_format($itemTotal, 2); ?></td>
+                                        <td data-label="Action">
                                             <div class="table-actions">
                                                 <button class="btn-admin btn-delete" onclick="if(confirm('Remove this item?')) window.location.href='cart.php?remove=<?php echo $item->id; ?>'">Remove</button>
                                             </div>
