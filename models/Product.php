@@ -19,6 +19,7 @@ class Product {
     public $specifications;
     public $brand;
     public $memory_size;
+    public $is_archived;
 
     public function __get($name) {
         switch ($name) {
@@ -63,7 +64,7 @@ class Product {
 
 
     public function getAllProducts(string $sort_by = 'newest'): array {
-        $query = "SELECT * FROM " . $this->table . $this->getOrderClause($sort_by);
+        $query = "SELECT * FROM " . $this->table . " WHERE is_archived = 0" . $this->getOrderClause($sort_by);
         
         $stmt = $this->conn->prepare($query);
         $stmt->execute();
@@ -94,7 +95,7 @@ class Product {
 
 //get filtered products based on selected brands and memory sizes
 public function getFilteredProducts($brands = [], $memory_sizes = [], string $sort_by = 'newest'): array {
-    $query = "SELECT * FROM " . $this->table . " WHERE 1=1";
+    $query = "SELECT * FROM " . $this->table . " WHERE is_archived = 0";
     
     if (!empty($brands)) {
         $placeholders = implode(',', array_fill(0, count($brands), '?'));
@@ -188,25 +189,25 @@ public function getFilteredProducts($brands = [], $memory_sizes = [], string $so
     }
 
     /**
-     * Delete a product and its related data
+     * Archive a product instead of deleting it.
+     * The row (and its features/specifications/order history) is kept,
+     * it's just flagged so it no longer shows up in storefront or admin listings.
      */
     public function deleteProduct($id) {
-        try {
-            $this->conn->beginTransaction();
-            
-            // Delete will cascade automatically due to foreign key constraints
-            $query = "DELETE FROM " . $this->table . " WHERE product_id = :id";
-            $stmt = $this->conn->prepare($query);
-            $stmt->bindParam(':id', $id);
-            
-            $result = $stmt->execute();
-            $this->conn->commit();
-            
-            return $result;
-        } catch (Exception $e) {
-            $this->conn->rollBack();
-            throw $e;
-        }
+        $query = "UPDATE " . $this->table . " SET is_archived = 1 WHERE product_id = :id";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':id', $id);
+        return $stmt->execute();
+    }
+
+    /**
+     * Restore a previously archived product.
+     */
+    public function restoreProduct($id) {
+        $query = "UPDATE " . $this->table . " SET is_archived = 0 WHERE product_id = :id";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':id', $id);
+        return $stmt->execute();
     }
 
     /**
@@ -434,6 +435,7 @@ public function getFilteredProducts($brands = [], $memory_sizes = [], string $so
         $product->image_url = $row['image_url'];
         $product->image = $row['image_url']; // Backward compatibility
         $product->brand = $row['brand'] ?? 'NVIDIA';
+        $product->is_archived = $row['is_archived'] ?? 0;
         
         // Set memory_size default (can be stored as a specification)
         $product->memory_size = 16;
